@@ -103,9 +103,9 @@ AlphaParticle *initialize_particles(int particle_count,Vector2 *position,Vector2
         Particles[i].velocity.x = velocity[i].x; //Zsolt fell free to change to name of this but pls make sure
         Particles[i].velocity.y=0.0;                //to pay attention that here I assume initial_velocity in a way such that it has only x component
         Particles[i].position.y = (i + 0.5) * physical_height / particle_count; //We must decide on the height of the playing field (here I used it as double)
-        Particles[i].COLOR.r =rand() % 256;
-        Particles[i].COLOR.g =rand() % 256;
-        Particles[i].COLOR.b =rand() % 256;
+        Particles[i].COLOR.r =i % 256;
+        Particles[i].COLOR.g =(i/256) % 256;
+        Particles[i].COLOR.b =(i/65536) % 256;
     }
     return Particles;
 }
