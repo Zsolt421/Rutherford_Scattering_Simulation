@@ -13,7 +13,7 @@
 // ! Mass:                  kilograms (kg)
 // ! Electric charge:       coulombs (C)
 // ! Force:                 newtons (N)
-// !
+// ! Particles              Array that stores the data of the particles
 // ! All physical calculations must use these units to ensure consistency between the different simulation components.
 // ! Note: Image dimensions are measured in pixels (px), and
 // ! atomic number (Z) is dimensionless.
@@ -88,6 +88,26 @@ Vector2 calculate_acceleration(Vector2 position, const Nucleus nuclei[], int nuc
 
 }
 
+AlphaParticle *initialize_particles(int particle_count,Vector2 *position,Vector2 *velocity,RGB *COLOR) {
+    AlphaParticle *Particles;
+    int i;
+    if (particle_count <= 0 ||position == NULL ||velocity == NULL ||COLOR == NULL) {
+        return NULL;
+        }
+    Particles = (AlphaParticle *)malloc(sizeof(AlphaParticle) * particle_count);
+    if (Particles == NULL) {
+        return NULL;
+    }
+    for (i = 0; i < particle_count; i++) {
+        Particles[i].position = position[i];
+        Particles[i].velocity = velocity[i];
+        Particles[i].COLOR = COLOR[i];
+    }
+    return Particles;
+}
+AlphaParticle *simulate_particles(Nucleus Nuclei, AlphaParticle *Particles, int particle_count) {
+
+}
 //-------------------------
 //* Functions of phase 2
 //-------------------------
@@ -104,7 +124,7 @@ Vector2 calculate_acceleration(Vector2 position, const Nucleus nuclei[], int nuc
 int main() {
     int nucleus_count = 0;// will be scanned from file, 0 is only placeholder
     Nucleus nuclei[nucleus_count];
-
+    AlphaParticle *Particles; // Array that will store Particles data
     // Phase 2: User Input & File Handling
     read_parameters();       // Zsolt
     load_nuclei();           // Ábel
