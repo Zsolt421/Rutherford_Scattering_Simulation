@@ -88,10 +88,10 @@ Vector2 calculate_acceleration(Vector2 position, const Nucleus nuclei[], int nuc
 
 }
 
-AlphaParticle *initialize_particles(int particle_count,Vector2 *position,Vector2 *velocity,RGB *COLOR) {
+AlphaParticle *initialize_particles(int particle_count,Vector2 *position,Vector2 *velocity) {
     AlphaParticle *Particles;
     int i;
-    if (particle_count <= 0 ||position == NULL ||velocity == NULL ||COLOR == NULL) {
+    if (particle_count <= 0 ||position == NULL ||velocity == NULL) {
         return NULL;
         }
     Particles = (AlphaParticle *)malloc(sizeof(AlphaParticle) * particle_count);
@@ -99,9 +99,13 @@ AlphaParticle *initialize_particles(int particle_count,Vector2 *position,Vector2
         return NULL;
     }
     for (i = 0; i < particle_count; i++) {
-        Particles[i].position = position[i];
-        Particles[i].velocity = velocity[i];
-        Particles[i].COLOR = COLOR[i];
+        Particles[i].position.x = position[i].x;
+        Particles[i].velocity.x = velocity[i].x; //Zsolt fell free to change to name of this but pls make sure
+        Particles[i].velocity.y=0.0;                //to pay attention that here I assume initial_velocity in a way such that it has only x component
+        Particles[i].position.y = (i + 0.5) * physical_height / particle_count; //We must decide on the height of the playing field (here I used it as double)
+        Particles[i].COLOR.r =rand() % 256;
+        Particles[i].COLOR.g =rand() % 256;
+        Particles[i].COLOR.b =rand() % 256;
     }
     return Particles;
 }
