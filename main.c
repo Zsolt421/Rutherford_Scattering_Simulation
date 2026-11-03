@@ -120,7 +120,7 @@ void Numerical_calculations(AlphaParticle alpha){
         Vector2 k1_r = alpha.velocity;   //k1_r = v
 
         Vector2 k1_v;
-        Vector2 F1 = calculate_total_force(alpha.pos,,);
+        Vector2 F1 ={2,5}; //calculate_total_force(alpha.pos,,);
         k1_v.x = F1.x/mass;  //k1_v = F(r)/m
         k1_v.y = F1.y/mass;  //k1_v = F(r)/m
 
@@ -134,7 +134,7 @@ void Numerical_calculations(AlphaParticle alpha){
         Vector2 pos2;
         pos2.x = alpha.position.x + 0.5*dt*k1_r.x;          //X r + 0.5 * dt * k1_r
         pos2.y = alpha.position.y + 0.5*dt*k1_r.y;          //Y r + 0.5 * dt * k1_r
-        Vector2 F2 = calculate_total_force((pos2,,);        //  F(r + 0.5 * dt * k1_r)
+        Vector2 F2 = {2,5};//calculate_total_force((pos2));        //  F(r + 0.5 * dt * k1_r)
         k2_v.x =  F2.x / mass;                              //X k2_v = F(r + 0.5 * dt * k1_r) / m
         k2_v.y =  F2.y / mass;                              //Y k2_v = F(r + 0.5 * dt * k1_r) / m
 
@@ -148,7 +148,7 @@ void Numerical_calculations(AlphaParticle alpha){
         Vector2 pos3;
         pos3.x = alpha.position.x + 0.5*dt*k2_r.x;          //X r + 0.5 * dt * k2_r
         pos3.y = alpha.position.y + 0.5*dt*k2_r.y;          //Y r + 0.5 * dt * k2_r
-        Vector2 F3 = calculate_total_force((pos3,,);        //  F(r + 0.5 * dt * k2_r)
+        Vector2 F3 = {2,5};//calculate_total_force((pos3,,);        //  F(r + 0.5 * dt * k2_r)
         k3_v.x =  F3.x / mass;                              //X k3_v = F(r + 0.5 * dt * k2_r) / m
         k3_v.y =  F3.y / mass;                              //Y k3_v = F(r + 0.5 * dt * k2_r) / m
 
@@ -162,7 +162,7 @@ void Numerical_calculations(AlphaParticle alpha){
         Vector2 pos4;
         pos4.x = alpha.position.x + dt*k3_r.x;          //X r + dt * k3_r
         pos4.y = alpha.position.y + dt*k3_r.y;          //Y r + dt * k3_r
-        Vector2 F4 = calculate_total_force((pos4,,);        //  F(r + dt * k3_r)
+        Vector2 F4 = {2,5};//calculate_total_force((pos4,,);        //  F(r + dt * k3_r)
         k4_v.x =  F4.x / mass;                              //X k4_v = F(r + dt * k3_r) / m
         k4_v.y =  F4.y / mass;                              //Y k4_v = F(r + dt * k3_r) / m
 
@@ -184,4 +184,37 @@ void Numerical_calculations(AlphaParticle alpha){
     }
 
 
+}
+
+int main(){
+    FILE *file = fopen("data.txt", "r");
+    if(file == NULL) return 1;
+    int running = 1;
+    int size = 1;
+    Nucleus *p = malloc(sizeof(Nucleus));
+    while (running){
+        
+        double x;
+        double y;
+        int Z;
+
+
+
+        switch (fscanf(file, "%lf %lf %d", &x,&y,&Z)){
+            case 3: realloc(p,sizeof(Nucleus)*size); p[size].x = x; p[size].y = y; p[size].Z = Z; size++; break;
+
+            case 2: realloc(p,sizeof(Nucleus)*size); p[size].x = x; p[size].y = y; p[size].Z = 79; size++; break;
+
+            case 0: running = 0;
+        }
+        
+}
+
+    //Nucleus *Nuclei = p;
+    fclose(file);
+
+    for (int i = 0; i < size; i++){
+        printf("Nuclei %d: %.2f %.2f %d", i+1, p[i].x,p[i].y, p[i].Z);
+    }
+    free(p);
 }
