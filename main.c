@@ -2,10 +2,6 @@
 #include <stdlib.h>
 #include <math.h>
 
-double dt = 0.01;
-double mass;
-int max_steps;
-
 //extensions: Colorful Comments, indent-rainbow,  Party Owl '84, vscode-pets
 
 // ! IMPORTANT: All team members must use SI units consistently!
@@ -17,10 +13,20 @@ int max_steps;
 // ! Mass:                  kilograms (kg)
 // ! Electric charge:       coulombs (C)
 // ! Force:                 newtons (N)
-// ! Particles              Array that stores the data of the particles
+// !
 // ! All physical calculations must use these units to ensure consistency between the different simulation components.
 // ! Note: Image dimensions are measured in pixels (px), and
 // ! atomic number (Z) is dimensionless.
+
+// ? Parameter	Value
+// ? Image width	800 pixels
+// ? Image height	800 pixels
+// ? Physical width	1e-9 m
+// ? Physical height	1e-9 m
+// ? Starting X	0 m
+// ? Initial velocity	1e7 m/s
+// ? Time step (dt)	1e-19 s
+// ? Maximum steps	1000
 
 
 //-------------------------
@@ -55,8 +61,10 @@ typedef struct {
 //-------------------------
 //* Definition of constants
 //-------------------------
+#define PI 3.14159265358979
+#define EPSILON_0 8.8541878188e-12
+#define COULOMB_CONSTANT (1.0 / (4.0 * PI * EPSILON_0))
 
-#define COULOMB_CONSTANT 8.9875517923e9
 #define ELEMENTARY_CHARGE 1.602176634e-19
 #define ALPHA_CHARGE (2.0 * ELEMENTARY_CHARGE)
 #define ALPHA_MASS 6.644657e-27
@@ -65,7 +73,9 @@ typedef struct {
 //* Functions of phase 1
 //-------------------------
 
-//calculates the coulomb force btw an alpha particle and a nucleus. The position is the position of an Alpha particle, but only its position should be passed in.
+//calculates the coulomb force btw one alpha particle and one nucleus.
+//The position is the position of an Alpha particle.
+//Returns the total Coulomb force as a Vector2 (Fx, Fy), measured in newtons.
 Vector2 calculate_coulomb_force(Vector2 position, Nucleus nucleus){
     double Fx, Fy, dx, dy, d;
     Vector2 v;
@@ -84,15 +94,30 @@ Vector2 calculate_coulomb_force(Vector2 position, Nucleus nucleus){
 }
 //todo: function cant handle very small distances btw particles becouse very small nonzero d can lead to division by 0
 
-Vector2 calculate_total_force(Vector2 position, const Nucleus nuclei[], int nucleus_count){
+Vector2 calculate_total_force(Vector2 position, const Nucleus nuclei[], int nucleus_count) {
+    //F(r) = Σi Fi(r)
+    Vector2 Sum_of_forces = {0,0};
+    Vector2 f;
 
+    for (int i = 0; i < nucleus_count; i++) {
+        f = calculate_coulomb_force(position, nuclei[i]);
+        Sum_of_forces.x += f.x;
+        Sum_of_forces.y += f.y;
+    }
+    return Sum_of_forces;
 }
 
-Vector2 calculate_acceleration(Vector2 position, const Nucleus nuclei[], int nucleus_count) {
 
-}
+/* Vector2 calculate_acceleration(Vector2 position, const Nucleus nuclei[], int nucleus_count) {
+    Vector2 accelaration_of_particle = {0,0};
+    Vector2 F = calculate_total_force(position, nuclei, nucleus_count);
+    accelaration_of_particle.x = F.x / ALPHA_MASS;
+    accelaration_of_particle.y = F.y / ALPHA_MASS;
+    return accelaration_of_particle;
+} */
 
-void Numerical_calculations(AlphaParticle *alpha){
+
+void numerical_calculations(AlphaParticle *alpha, int max_steps, const Nucleus nuclei[], int nucleus_count, double dt){
 
     int t = 1;
     while (t <= max_steps){
@@ -101,9 +126,9 @@ void Numerical_calculations(AlphaParticle *alpha){
         Vector2 k1_r = (*alpha).velocity;   //k1_r = v
 
         Vector2 k1_v;
-        Vector2 F1 = calculate_total_force(alpha.pos,,);
-        k1_v.x = F1.x/mass;  //k1_v = F(r)/m
-        k1_v.y = F1.y/mass;  //k1_v = F(r)/m
+        Vector2 F1 = calculate_total_force((*alpha).position, nuclei, nucleus_count);
+        k1_v.x = F1.x/ALPHA_MASS;  //k1_v = F(r)/m
+        k1_v.y = F1.y/ALPHA_MASS;  //k1_v = F(r)/m
 
 
         // second step
@@ -115,9 +140,9 @@ void Numerical_calculations(AlphaParticle *alpha){
         Vector2 pos2;
         pos2.x = (*alpha).position.x + 0.5*dt*k1_r.x;          //X r + 0.5 * dt * k1_r
         pos2.y = (*alpha).position.y + 0.5*dt*k1_r.y;          //Y r + 0.5 * dt * k1_r
-        Vector2 F2 = calculate_total_force((pos2,,);        //  F(r + 0.5 * dt * k1_r)
-        k2_v.x =  F2.x / mass;                              //X k2_v = F(r + 0.5 * dt * k1_r) / m
-        k2_v.y =  F2.y / mass;                              //Y k2_v = F(r + 0.5 * dt * k1_r) / m
+        Vector2 F2 = calculate_total_force((*alpha).position, nuclei, nucleus_count);        //  F(r + 0.5 * dt * k1_r)
+        k2_v.x =  F2.x / ALPHA_MASS;                              //X k2_v = F(r + 0.5 * dt * k1_r) / m
+        k2_v.y =  F2.y / ALPHA_MASS;                              //Y k2_v = F(r + 0.5 * dt * k1_r) / m
 
 
         // third step
@@ -129,9 +154,9 @@ void Numerical_calculations(AlphaParticle *alpha){
         Vector2 pos3;
         pos3.x = (*alpha).position.x + 0.5*dt*k2_r.x;          //X r + 0.5 * dt * k2_r
         pos3.y = (*alpha).position.y + 0.5*dt*k2_r.y;          //Y r + 0.5 * dt * k2_r
-        Vector2 F3 = calculate_total_force((pos3,,);        //  F(r + 0.5 * dt * k2_r)
-        k3_v.x =  F3.x / mass;                              //X k3_v = F(r + 0.5 * dt * k2_r) / m
-        k3_v.y =  F3.y / mass;                              //Y k3_v = F(r + 0.5 * dt * k2_r) / m
+        Vector2 F3 = calculate_total_force((*alpha).position, nuclei, nucleus_count);        //  F(r + 0.5 * dt * k2_r)
+        k3_v.x =  F3.x / ALPHA_MASS;                              //X k3_v = F(r + 0.5 * dt * k2_r) / m
+        k3_v.y =  F3.y / ALPHA_MASS;                              //Y k3_v = F(r + 0.5 * dt * k2_r) / m
 
 
         // fourth step
@@ -143,9 +168,9 @@ void Numerical_calculations(AlphaParticle *alpha){
         Vector2 pos4;
         pos4.x = (*alpha).position.x + dt*k3_r.x;          //X r + dt * k3_r
         pos4.y = (*alpha).position.y + dt*k3_r.y;          //Y r + dt * k3_r
-        Vector2 F4 = calculate_total_force((pos4,,);        //  F(r + dt * k3_r)
-        k4_v.x =  F4.x / mass;                              //X k4_v = F(r + dt * k3_r) / m
-        k4_v.y =  F4.y / mass;                              //Y k4_v = F(r + dt * k3_r) / m
+        Vector2 F4 = calculate_total_force((*alpha).position, nuclei, nucleus_count);        //  F(r + dt * k3_r)
+        k4_v.x =  F4.x / ALPHA_MASS;                              //X k4_v = F(r + dt * k3_r) / m
+        k4_v.y =  F4.y / ALPHA_MASS;                              //Y k4_v = F(r + dt * k3_r) / m
 
 
 
@@ -160,14 +185,19 @@ void Numerical_calculations(AlphaParticle *alpha){
 
         //SAVE IT INTO A FILE (PPM?)
 
+        draw_trajectories((*alpha).position, r_new);
+
         //increase step
         (*alpha).position = r_new;
         (*alpha).velocity = v_new;
         t++;
     }
+
+    return;
 }
 
-AlphaParticle *initialize_particles(int particle_count,Vector2 *position,Vector2 *velocity) {
+
+AlphaParticle *initialize_particles(int particle_count, Vector2 *position, Vector2 *velocity, int WINDOW_HEIGHT) {
     AlphaParticle *Particles;
     int i;
     if (particle_count <= 0 ||position == NULL ||velocity == NULL) {
@@ -180,24 +210,28 @@ AlphaParticle *initialize_particles(int particle_count,Vector2 *position,Vector2
     for (i = 0; i < particle_count; i++) {
         Particles[i].position.x = position[i].x;
         Particles[i].velocity.x = velocity[i].x; //Zsolt fell free to change to name of this but pls make sure
-        Particles[i].velocity.y=0.0;                //to pay attention that here I assume initial_velocity in a way such that it has only x component
-        Particles[i].position.y = (i + 0.5) * physical_height / particle_count; //We must decide on the height of the playing field (here I used it as double)
-        Particles[i].COLOR.r =i % 256;
-        Particles[i].COLOR.g =(i/256) % 256;
-        Particles[i].COLOR.b =(i/65536) % 256;
+        Particles[i].velocity.y = 0.0;                //to pay attention that here I assume initial_velocity in a way such that it has only x component
+        Particles[i].position.y = (i + 0.5) * WINDOW_HEIGHT / particle_count; //We must decide on the height of the playing field (here I used it as double)
+        Particles[i].COLOR.r =(i + 10) % 256;
+        Particles[i].COLOR.g =(i + 10 / 256) % 256;
+        Particles[i].COLOR.b =(i + 10 / 65536) % 256;
     }
     return Particles;
 }
-AlphaParticle *simulate_particles(Nucleus Nuclei, AlphaParticle *Particles, int particle_count) {
+
+
+AlphaParticle *simulate_particles(const Nucleus nuclei[], AlphaParticle *Particles, int particle_count, int nucleus_count, double dt, int max_steps) {
     int i;
     if (Particles== NULL || particle_count <= 0) {
         return NULL;
     }
     for (i=0;i<particle_count;i++) {
-    Numerical_calculations(&Particles[i]);
+    numerical_calculations(&Particles[i], max_steps, nuclei, nucleus_count, dt);
     }
     return Particles;
 }
+
+
 //-------------------------
 //* Functions of phase 2
 //-------------------------
@@ -213,15 +247,19 @@ AlphaParticle *simulate_particles(Nucleus Nuclei, AlphaParticle *Particles, int 
 //-------------------------
 int main() {
     int nucleus_count = 0;// will be scanned from file, 0 is only placeholder
-    Nucleus nuclei[nucleus_count];
+    Nucleus *nuclei = NULL;
     AlphaParticle *Particles; // Array that will store Particles data
+    int particle_count = 0;
+    double dt;
+    int max_steps, WINDOW_HEIGHT, WINDOW_WIDTH;
+
     // Phase 2: User Input & File Handling
     read_parameters();       // Zsolt
     load_nuclei();           // Ábel
 
     // Phase 1: Physics & Simulation
-    initialize_particles();  // Pityesz
-    simulate_particles();    // Pityesz
+    initialize_particles(particle_count, &Particles->position, &Particles->velocity, WINDOW_HEIGHT);  // Pityesz
+    simulate_particles(nuclei, &Particles, particle_count, nucleus_count, dt, max_steps);    // Pityesz
     //&Inside simulate_particles(), Pityesz will call Ábel's rk4_step(), which will use Zsolt's three physics functions:
 
     // Phase 3: Visualization & Output
