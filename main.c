@@ -60,13 +60,12 @@ typedef struct {
     double physical_width;
     double physical_height;
     double starting_x;
-    double initial_velocity;
+    double *initial_velocity;
     double dt;
     int max_steps;
     char nuclei_filename[256];
     char output_filename[256];
 } SimulationParameters;
-
 /* -------------------------
 * Definition of constants
  ------------------------- */
@@ -212,36 +211,36 @@ void numerical_calculations(AlphaParticle *alpha, int max_steps, const Nucleus n
 }
 
 
-AlphaParticle *initialize_particles(int particle_count, Vector2 *position, Vector2 *velocity, int WINDOW_HEIGHT) {
+AlphaParticle *initialize_particles(SimulationParameters SIMPAR) {
     AlphaParticle *Particles;
     int i;
-    if (particle_count <= 0 ||position == NULL ||velocity == NULL) {
+    if (SIMPAR.particle_count <= 0 || SIMPAR.initial_velocity == NULL) {
         return NULL;
         }
-    Particles = (AlphaParticle *)malloc(sizeof(AlphaParticle) * particle_count);
+    Particles = (AlphaParticle *)malloc(sizeof(AlphaParticle) * SIMPAR.particle_count);
     if (Particles == NULL) {
         return NULL;
     }
-    for (i = 0; i < particle_count; i++) {
-        Particles[i].position.x = position[i].x;
-        Particles[i].velocity.x = velocity[i].x; /* Zsolt fell free to change to name of this but pls make sure */
+    for (i = 0; i < SIMPAR.particle_count; i++) {
+        Particles[i].position.x = SIMPAR.starting_x;
+        Particles[i].velocity.x = SIMPAR.initial_velocity[i]; /* Zsolt fell free to change to name of this but pls make sure */
         Particles[i].velocity.y = 0.0;            /* to pay attention that here I assume initial_velocity in a way such that it has only x component */
-        Particles[i].position.y = (i + 0.5) * WINDOW_HEIGHT / particle_count; /* We must decide on the height of the playing field (here I used it as double) */
-        Particles[i].COLOR.r =(i + 10) % 256;
-        Particles[i].COLOR.g =(i + 10 / 256) % 256;
-        Particles[i].COLOR.b =(i + 10 / 65536) % 256;
+        Particles[i].position.y = ((i + 0.5) * SIMPAR.physical_height / SIMPAR.particle_count); /* We must decide on the height of the playing field (here I used it as double) */
+        Particles[i].COLOR.r = (i + 10) % 256;
+        Particles[i].COLOR.g = ((i + 10) / 256) % 256;
+        Particles[i].COLOR.b = ((i + 10) / 65536) % 256;
     }
     return Particles;
 }
 
 
-AlphaParticle *simulate_particles(const Nucleus nuclei[], AlphaParticle *Particles, int particle_count, int nucleus_count, double dt, int max_steps) {
+AlphaParticle *simulate_particles(const Nucleus nuclei[],int nucleus_count, AlphaParticle *Particles, SimulationParameters SIMPAR) {
     int i;
-    if (Particles== NULL || particle_count <= 0) {
+    if (Particles== NULL || SIMPAR.particle_count <= 0 || SIMPAR.dt<=0.0 || SIMPAR.max_steps<=0 || nucleus_count<0 || (nucleus_count>0 && nuclei == NULL)) {
         return NULL;
     }
-    for (i=0;i<particle_count;i++) {
-    numerical_calculations(&Particles[i], max_steps, nuclei, nucleus_count, dt);
+    for (i=0;i<SIMPAR.particle_count;i++) {
+    numerical_calculations(&Particles[i], SIMPAR.max_steps, nuclei, nucleus_count, SIMPAR.dt);
     }
     return Particles;
 }
@@ -251,74 +250,153 @@ AlphaParticle *simulate_particles(const Nucleus nuclei[], AlphaParticle *Particl
 * Functions of phase 2
  ------------------------- */
 
-SimulationParameters read_parameters(void) {
-    SimulationParameters SIMPAR; /* SIMULATION PARAMETERS */
+SimulationParameters read_parameters(void) {              //Here I can't use return 1 to exit because my return tyoe uns SMP so I use exit(EXIT_FAILURE) wich kills of the program
+    SimulationParameters SIMPAR = {0}; /* SIMULATION PARAMETERS */
 
     printf("Enter image width (pixels): ");
-    scanf("%d", &SIMPAR.image_width);
+    if (scanf("%d", &SIMPAR.image_width) !=1) {
+        fprintf(stderr, "Invalid image width\n");
+        exit(EXIT_FAILURE);
+    }
 
     printf("Enter image height (pixels): ");
-    scanf("%d", &SIMPAR.image_height);
+    if (scanf("%d", &SIMPAR.image_height) != 1) {
+        fprintf(stderr, "Invalid image height\n");
+        exit(EXIT_FAILURE);
+    }
 
     printf("Enter physical width (m)(optimal around 10^-9): ");
-    scanf("%lf", &SIMPAR.physical_width);
+    if (scanf("%lf", &SIMPAR.physical_width) != 1) {
+        fprintf(stderr, "Invalid physical width\n");
+        exit(EXIT_FAILURE);
+    }
 
     printf("Enter physical height (m)(optimal around 10^-9): ");
-    scanf("%lf", &SIMPAR.physical_height);
+    if (scanf("%lf", &SIMPAR.physical_height) != 1) {
+        fprintf(stderr, "Invalid physical height\n");
+        exit(EXIT_FAILURE);
+    }
 
-    printf("Enter number of alpha particles: ");
-    scanf("%d", &SIMPAR.particle_count);
+    printf("Enter number of alpha particles: "); //Error if invalid particle count
+    if (scanf("%d", &SIMPAR.particle_count)!=1 || SIMPAR.particle_count <= 0) {
+        fprintf(stderr, "Invalid number of alpha particles\n");
+        exit(EXIT_FAILURE);
+    }
 
     printf("Enter starting X position (m): ");
-    scanf("%lf", &SIMPAR.starting_x);
+    if (scanf("%lf", &SIMPAR.starting_x) != 1) {
+        fprintf(stderr, "Invalid starting X position\n");
+        exit(EXIT_FAILURE);
+    }
 
-    printf("Enter initial velocity (m/s): ");
-    scanf("%lf", &SIMPAR.initial_velocity);
-
+    int i;  //Creating velocity array
+    SIMPAR.initial_velocity = malloc(SIMPAR.particle_count * sizeof(double));
+    if (SIMPAR.initial_velocity == NULL) {
+        fprintf(stderr, "Error allocating initial velocity\n"); //Checking if user entered 0 initial
+        exit(EXIT_FAILURE);
+    }
+    for (i=0;i<SIMPAR.particle_count;i++) {
+    printf("Enter initial velocity %d (m/s): ",i+1); //allocating velocities
+    if (scanf("%lf", &SIMPAR.initial_velocity[i]) != 1) { //Checking if entered velocity is a correct type
+        fprintf(stderr, "Invalid initial velocity\n");
+        free(SIMPAR.initial_velocity);
+        exit(EXIT_FAILURE);
+        }
+    }
     printf("Enter time step dt (s): ");
-    scanf("%lf", &SIMPAR.dt);
+    if (scanf("%lf", &SIMPAR.dt) != 1) {
+        fprintf(stderr, "Invalid time step input\n");
+        free(SIMPAR.initial_velocity);
+        exit(EXIT_FAILURE);
+    }
 
     printf("Enter maximum number of steps: ");
-    scanf("%d", &SIMPAR.max_steps);
+    if (scanf("%d", &SIMPAR.max_steps) != 1) {
+        fprintf(stderr, "Invalid number of steps\n");
+        free(SIMPAR.initial_velocity);
+        exit(EXIT_FAILURE);
+    }
 
     printf("Enter nuclei input filename: ");
-    scanf("%255s", SIMPAR.nuclei_filename);
+    if (scanf("%255s", SIMPAR.nuclei_filename) != 1) {
+        fprintf(stderr, "Invalid filename\n");
+        free(SIMPAR.initial_velocity);
+        exit(EXIT_FAILURE);
+    }
 
     printf("Enter output PPM filename: ");
-    scanf("%255s", SIMPAR.output_filename);
+    if (scanf("%255s", SIMPAR.output_filename) != 1) {
+        fprintf(stderr, "Invalid filename\n");
+        free(SIMPAR.initial_velocity);
+        exit(EXIT_FAILURE);
+    }
 
     return SIMPAR;
 }
 
 
-int validate_parameters(SimulationParameters SP) {
-    if (SP.image_height > 0 && SP.image_width > 0 && SP.physical_height > 0 && SP.physical_width > 0) {
-        if (SP.particle_count > 0 && SP.starting_x > 0 && SP.starting_x < 1000 && SP.initial_velocity > 0 && SP.dt > 0 && SP.dt < 100 && SP.max_steps > 0) {
-            //!starting_x
-            return 1;
-        }
+int validate_parameters(SimulationParameters SIMPAR) { //Here I use isfinite tha checks if my number is finite only returns 0 if isfinite(INFINITY) ors isfinte(NAN) !isfinite is its inverse so it returns 0 when isfinite would return 1
+    int i;
+
+    if (SIMPAR.image_width <= 0 || SIMPAR.image_height <= 0) {
+        fprintf(stderr, "Invalid image dimensions.\n");
+        return 1;
     }
+
+    if (!isfinite(SIMPAR.physical_width) || !isfinite(SIMPAR.physical_height) || SIMPAR.physical_width <= 0.0 ||
+        SIMPAR.physical_height <= 0.0) {
+        fprintf(stderr, "Invalid physical dimensions.\n");
+        return 1;
+        }
+
+    if (SIMPAR.particle_count <= 0 || SIMPAR.initial_velocity == NULL) {
+        fprintf(stderr, "Invalid particle count or velocity array.\n");
+        return 1;
+        }
+
+    if (!isfinite(SIMPAR.starting_x) || SIMPAR.starting_x < 0.0 || SIMPAR.starting_x >= SIMPAR.physical_width) {
+        fprintf(stderr, "Invalid starting X position.\n");
+        return 1;
+        }
+
+    for (i = 0; i < SIMPAR.particle_count; i++) {
+        if (!isfinite(SIMPAR.initial_velocity[i]) || SIMPAR.initial_velocity[i] <= 0.0) {
+            fprintf(stderr,"Invalid initial velocity for particle %d.\n",i + 1);
+            return 1;
+            }
+    }
+
+    if (!isfinite(SIMPAR.dt) || SIMPAR.dt <= 0.0 || SIMPAR.dt >= 1.0) {
+        fprintf(stderr, "Invalid time step.\n");
+        return 1;
+        }
+
+    if (SIMPAR.max_steps <= 0) {
+        fprintf(stderr, "Invalid maximum number of steps.\n");
+        return 1;
+    }
+
     return 0;
 }
 
 
-int validate_file(SimulationParameters SP) {
+int validate_file(SimulationParameters SIMPAR) {
     FILE *file;
 
-    if (SP.nuclei_filename[0] == '\0' || SP.output_filename[0] == '\0') {
-        printf("Empty filename.\n");
+    if (SIMPAR.nuclei_filename[0] == '\0' || SIMPAR.output_filename[0] == '\0') {
+        fprintf(stderr,"Empty filename.\n");
         return 1;
     }
 
-    if (strcmp(SP.nuclei_filename, SP.output_filename) == 0) {
-        printf("Input and output filenames are identical.\n");
+    if (strcmp(SIMPAR.nuclei_filename, SIMPAR.output_filename) == 0) { //strcmp returns 0 if the two strings are identical
+        fprintf(stderr,"Input and output filenames are identical.\n");
         return 1;
     }
 
-    file = fopen(SP.nuclei_filename, "r");
+    file = fopen(SIMPAR.nuclei_filename, "r");
 
     if (file == NULL) {
-        printf("Cannot open nuclei file.\n");
+        fprintf(stderr,"Cannot open nuclei file.\n");
         return 1;
     }
 
@@ -374,6 +452,11 @@ Nucleus *read_nuclei(const char *filename, int *out_count) {
 /* -------------------------
 * Functions of phase 3
  ------------------------- */
+void free_memory(Nucleus *nuclei,AlphaParticle *Particles,SimulationParameters SIMPAR) {
+    free(nuclei);
+    free(Particles);
+    free(SIMPAR.initial_velocity);
+}
 
 int physical_to_pixel_x(double x, double physical_width, int image_width) {
     int px = round(x / physical_width * (image_width - 1));
@@ -392,34 +475,38 @@ int pixel_to_physical(double px, double physical_width, int image_width) {
 int main(int argc, char *argv[]) {
     int nucleus_count = 0; /* will be scanned from file, 0 is only placeholder */
     Nucleus *nuclei = NULL;
-    AlphaParticle *Particles; /* Array that will store Particles data */
+    AlphaParticle *Particles = NULL; /* Array that will store Particles data */
 
     /* Phase 2: User Input & File Handling */
     SimulationParameters SIM_PAR = read_parameters();     /* Zsolt */
-    if (1 == validate_parameters(SIM_PAR)){
+    if (validate_parameters(SIM_PAR) == 0){
         printf("Simulation parameters validated.\n");
     }
     else{
         fprintf(stderr,"There is one or more invalid parameters.\n");
+        free(SIM_PAR.initial_velocity);
         return 1;
     }
-    if (validate_file == 1){
+    if (validate_file(SIM_PAR) == 1){
+        free(SIM_PAR.initial_velocity);
         return 1;
     }
 
     nuclei = read_nuclei(SIM_PAR.nuclei_filename, &nucleus_count);         /* Ábel - nuclei[0] -> nuclei[count-1] */
     if (nuclei == NULL && nucleus_count == 0) {
         fprintf(stderr,"something went wrong with the file.\n");
+        free_memory(nuclei,Particles,SIM_PAR);
         return 1;
     }
 
     /* Phase 1: Physics & Simulation */
-    Particles = initialize_particles(SIM_PAR.particle_count, &Particles->position, &Particles->velocity, SIM_PAR.image_height); /* Pityesz */
+    Particles = initialize_particles(SIM_PAR); /* Pityesz */
     if (Particles == NULL) {
         fprintf(stderr,"something went wrong with with initialising the particles\n");
+        free_memory(nuclei,Particles,SIM_PAR);
         return 1;
     }
-    simulate_particles(nuclei, Particles, SIM_PAR.particle_count, nucleus_count, SIM_PAR.dt, SIM_PAR.max_steps); /* Pityesz */
+    simulate_particles(nuclei, nucleus_count, Particles, SIM_PAR); /* Pityesz */
     /* Inside simulate_particles(), Pityesz will call Ábel's rk4_step(), which will use Zsolt's three physics functions. */
 
     /* Phase 3: Visualization & Output */
@@ -429,8 +516,7 @@ int main(int argc, char *argv[]) {
     save_ppm();            /* Pityesz */
 
     /* Clean up */
-    free(nuclei);
-    free_memory();         /* Shared responsibility */
+    free_memory(nuclei,Particles,SIM_PAR);         /* Shared responsibility */
 
     return 0;
 }
