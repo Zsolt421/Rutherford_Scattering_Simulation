@@ -101,15 +101,23 @@ The position is the position of an Alpha particle.
 Returns the Coulomb force as a Vector2 (Fx, Fy), measured in newtons.
  */
 Vector2 calculate_coulomb_force(Vector2 position, Nucleus nucleus){
-    double Fx, Fy, dx, dy, d;
+    double Fx, Fy, dx, dy;
+    long double d;
     Vector2 v;
-
     dx = position.x - nucleus.x;
     dy = position.y - nucleus.y;
-    d = sqrt(dx * dx + dy * dy);
+    d = powl(hypotl(dx,dy),3.0L);
+    if (d==0.0) {
+        fprintf(stderr,"d is to small for the program to handle");
+        exit(EXIT_FAILURE);
+    }
     /* the coulomb force multiplied by the direction components, sin(dy/d) or the cos(dx/d), but bc we dont know the angle we use the dx formula */
-    Fx = COULOMB_CONSTANT * (ALPHA_CHARGE * nucleus.Z * ELEMENTARY_CHARGE) * dx / (d * d * d);
-    Fy = COULOMB_CONSTANT * (ALPHA_CHARGE * nucleus.Z * ELEMENTARY_CHARGE) * dy / (d * d * d);
+    Fx = COULOMB_CONSTANT * (ALPHA_CHARGE * nucleus.Z * ELEMENTARY_CHARGE) * dx / d;
+    Fy = COULOMB_CONSTANT * (ALPHA_CHARGE * nucleus.Z * ELEMENTARY_CHARGE) * dy / d;
+    if (!isfinite(Fx) || !isfinite(Fy)) {
+        fprintf(stderr,"Coulomb force overflow.\n");
+        exit(EXIT_FAILURE);
+    }
 
     v.x = Fx;
     v.y = Fy;
@@ -425,23 +433,36 @@ Nucleus *read_nuclei(const char *filename, int *out_count) {
     while (fgets(line, sizeof(line), file) != NULL) {
 
         read_count = sscanf(line, "%lf %lf %d", &x, &y, &Z);
+        if (read_count < 2 || !isfinite(x) || !isfinite(y)) {
+            fprintf(stderr,"Invalid nuclei data on line %d.\n",count+1);
+            free(p);
+            fclose(file);
+            *out_count = 0;
+            return NULL;
+        }
 
-        if (read_count >= 2) {
-            temp = (Nucleus *)realloc(p, sizeof(Nucleus) * (count + 1));
-            if (temp == NULL) {
+        temp = (Nucleus *)realloc(p, sizeof(Nucleus) * (count + 1));
+        if (temp == NULL) {
                 free(p);
                 fclose(file);
                 *out_count = 0;
                 return NULL;
-            }
-            p = temp;
-
-            p[count].x = x;
-            p[count].y = y;
-            p[count].Z = (read_count == 3) ? Z : 79;
-
-            count++;
         }
+        p = temp;
+
+        p[count].x = x;
+        p[count].y = y;
+        p[count].Z = (read_count == 3) ? Z : 79;
+
+        if (p[count].Z<=0) {
+            fprintf(stderr,"Invalid nuclei data on line %d.\n",count+1);
+            free(p);
+            fclose(file);
+            *out_count = 0;
+            return NULL;
+        }
+
+        count++;
     }
 
     fclose(file);
