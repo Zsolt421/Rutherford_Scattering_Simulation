@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <string.h>
 
 /*
 extensions: Colorful Comments, indent-rainbow,  Party Owl '84, vscode-pets
@@ -27,6 +28,11 @@ extensions: Colorful Comments, indent-rainbow,  Party Owl '84, vscode-pets
  ------------------------- */
 
 /* //can be used to store position(x, y), velocity(vx, vy), force(Fx, Fy), accelaration(ax,ay) */
+typedef enum{
+    INVALID,
+    VALID,
+} Validate;
+
 typedef struct
 {
     double x;
@@ -51,9 +57,23 @@ typedef struct {
     RGB COLOR;
 } AlphaParticle;
 
+typedef struct {
+    int particle_count;
+    int image_width;
+    int image_height;
+    double physical_width;
+    double physical_height;
+    double starting_x;
+    double initial_velocity;
+    double dt;
+    int max_steps;
+    char nuclei_filename[256];
+    char output_filename[256];
+} SimulationParameters;
+
 /* ------------------------- 
 * Definition of constants      
- ------------------------- */
+------------------------- */
 #define PI 3.14159265358979
 #define EPSILON_0 8.8541878188e-12
 #define COULOMB_CONSTANT (1.0 / (4.0 * PI * EPSILON_0))
@@ -145,15 +165,15 @@ void numerical_calculations(AlphaParticle *alpha, int max_steps, const Nucleus n
         
         F1 = calculate_total_force((*alpha).position, nuclei, nucleus_count);
         k1_v = vec_scale(F1, 1.0/ ALPHA_MASS); /* k1_v = F(r)/m */
-
-
+        
+        
         /* second step */
         k2_r = vec_add((*alpha).velocity, vec_scale(k1_v, 0.5*dt)); /* k2_r = v + 0.5 * dt * k1_v*/
 
         pos2 = vec_add((*alpha).position, vec_scale(k1_r, 0.5*dt)); /* r + 0.5 * dt * k1_r */
         F2 = calculate_total_force(pos2, nuclei, nucleus_count);       /* F(r + 0.5 * dt * k1_r) */
         k2_v = vec_scale(F2, 1.0/ ALPHA_MASS); /* Y k2_v = F(r + 0.5 * dt * k1_r) / m */
-
+        
 
         /* third step */
         k3_r = vec_add((*alpha).velocity, vec_scale(k2_v, 0.5*dt)); /* k3_r = v + 0.5 * dt * k2_v*/
@@ -165,7 +185,7 @@ void numerical_calculations(AlphaParticle *alpha, int max_steps, const Nucleus n
 
         /* fourth step */
         k4_r = vec_add((*alpha).velocity, vec_scale(k3_v, dt)); /* k4_r = v + dt * k3_v*/
-
+        
         pos4 = vec_add((*alpha).position, vec_scale(k3_r, dt)); /* r + dt * k3_r */
         F4 = calculate_total_force(pos4, nuclei, nucleus_count);       /* F(r + dt * k3_r) */
         k4_v = vec_scale(F4, 1.0 / ALPHA_MASS); /* k4_v = F(r + dt * k3_r) / m */
@@ -234,7 +254,103 @@ AlphaParticle *simulate_particles(const Nucleus nuclei[], AlphaParticle *Particl
 /* ------------------------- 
 * Functions of phase 2       
  ------------------------- */
-Nucleus *read_nuclei(const char *filename, int *out_count) {
+
+SimulationParameters read_parameters(void) {
+    SimulationParameters SIMPAR; /* SIMULATION PARAMETERS */
+    
+    printf("Enter image width (pixels): ");
+    scanf("%d", &SIMPAR.image_width);
+
+    printf("Enter image height (pixels): ");
+    scanf("%d", &SIMPAR.image_height);
+    
+    printf("Enter physical width (m)(optimal around 10^-9): ");
+    scanf("%lf", &SIMPAR.physical_width);
+
+    printf("Enter physical height (m)(optimal around 10^-9): ");
+    scanf("%lf", &SIMPAR.physical_height);
+    
+    printf("Enter number of alpha particles: ");
+    scanf("%d", &SIMPAR.particle_count);
+
+    printf("Enter starting X position (m): ");
+    scanf("%lf", &SIMPAR.starting_x);
+
+    printf("Enter initial velocity (m/s): ");
+    scanf("%lf", &SIMPAR.initial_velocity);
+
+    printf("Enter time step dt (s): ");
+    scanf("%lf", &SIMPAR.dt);
+
+    printf("Enter maximum number of steps: ");
+    scanf("%d", &SIMPAR.max_steps);
+    
+    printf("Enter nuclei input filename: ");
+    scanf("%255s", SIMPAR.nuclei_filename);
+
+    printf("Enter output PPM filename: ");
+    scanf("%255s", SIMPAR.output_filename);
+    
+    return SIMPAR;
+}
+
+
+Validate validate_parameters(SimulationParameters SP) {
+    if (SP.image_height > 0 && SP.image_width > 0 && SP.physical_height > 0 && SP.physical_width > 0) {
+        if (SP.particle_count > 0 && SP.starting_x > 0 && SP.starting_x < 1000 && SP.initial_velocity > 0 && SP.dt > 0 && SP.dt < 100 && SP.max_steps > 0) {
+            //!starting_x
+            return VALID;
+        }
+    }
+    return INVALID;
+}
+
+
+Validate validate_file(SimulationParameters SP) {
+    FILE *file;
+
+    if (SP.nuclei_filename[0] == '\0' || SP.output_filename[0] == '\0') {
+        printf("Empty filename.\n");
+        return INVALID;
+    }
+    
+    if (strcmp(SP.nuclei_filename, SP.output_filename) == 0) {
+        printf("Input and output filenames are identical.\n");
+        return INVALID;
+    }
+    
+    file = fopen(SP.nuclei_filename, "r");
+
+    if (file == NULL) {
+        printf("Cannot open nuclei file.\n");
+        return INVALID;
+    }
+    
+    fclose(file);
+    
+    return VALID;
+}
+
+Validate validate_nuclei(SimulationParameters SIMPAR, int read_count, int count, double x, double y, int Z){
+    if (x > SIMPAR.physical_width || y > SIMPAR.physical_height){
+        fprintf(stderr, "Nuclei position invalid in %s line %d", SIMPAR.nuclei_filename, count+1);
+        return INVALID;
+    }
+
+    if (read_count == 2){
+        return VALID;
+    }
+
+    if (Z <= 0 || Z > 92){ //Atomic number check, exists but not larger than Uranium
+        fprintf(stderr, "Atomic number of the Nuclei invalid in %s line %d", SIMPAR.nuclei_filename, count+1);
+        return INVALID;
+    }
+
+    return VALID;
+
+}
+
+Nucleus *read_nuclei(SimulationParameters SIMPAR, int *out_count) {
     FILE *file;
     Nucleus *p = NULL;
     Nucleus *temp;
@@ -244,7 +360,7 @@ Nucleus *read_nuclei(const char *filename, int *out_count) {
     int Z;
     int read_count;
 
-    file = fopen(filename, "r");
+    file = fopen(SIMPAR.nuclei_filename, "r");
     if (file == NULL) {
         *out_count = 0;
         return NULL;
@@ -255,6 +371,11 @@ Nucleus *read_nuclei(const char *filename, int *out_count) {
         read_count = sscanf(line, "%lf %lf %d", &x, &y, &Z);
 
         if (read_count >= 2) {
+
+            if (validate_nuclei(SIMPAR,read_count, count,x,y,Z) == INVALID){
+                return NULL;
+            }
+
             temp = (Nucleus *)realloc(p, sizeof(Nucleus) * (count + 1));
             if (temp == NULL) {
                 free(p);
@@ -270,17 +391,31 @@ Nucleus *read_nuclei(const char *filename, int *out_count) {
 
             count++;
         }
+        
+        else {
+            fprintf(stderr, "Not enough parameters in %s, line %d", SIMPAR.nuclei_filename, count+1);
+            return NULL;
+        }
     }
 
     fclose(file);
     *out_count = count;
     return p;
 }
-
 /* ------------------------- 
 * Functions of phase 3       
  ------------------------- */
 
+int physical_to_pixel_x(double x, double physical_width, int image_width) {
+    int px = round(x / physical_width * (image_width - 1));
+    return px;
+} //& x is the position of the object
+
+
+int pixel_to_physical(double px, double physical_width, int image_width) {
+    int x = px / physical_width * (image_width - 1);
+    return x;
+} //& px is the pixel position
 
 /* ------------------------- 
 * Main                      
@@ -289,23 +424,34 @@ int main() {
     int nucleus_count = 0; /* will be scanned from file, 0 is only placeholder */
     Nucleus *nuclei = NULL;
     AlphaParticle *Particles; /* Array that will store Particles data */
-    int particle_count = 0;
-    double dt;
-    int max_steps, WINDOW_HEIGHT, WINDOW_WIDTH;
-    char* filename;
+
 
     /* Phase 2: User Input & File Handling */
-    read_parameters();     /* Zsolt */
+    SimulationParameters SIM_PAR = read_parameters();     /* Zsolt */
+    if (INVALID == validate_parameters(SIM_PAR)){
+        printf("Simulation parameters validated.\n");
+    }
+    else{
+        fprintf(stderr,"There is one or more invalid parameters.\n");
+        return 1;
+    }
+    if (validate_file == INVALID){
+        return 1;
+    }
 
-    nuclei = read_nuclei(filename, &nucleus_count);         /* Ábel - nuclei[0] -> nuclei[count-1] */
+    nuclei = read_nuclei(SIM_PAR, &nucleus_count);         /* Ábel - nuclei[0] -> nuclei[count-1] */
     if (nuclei == NULL && nucleus_count == 0) {
         fprintf(stderr,"something went wrong with the file.\n");
         return 1;
     }
 
     /* Phase 1: Physics & Simulation */
-    initialize_particles(particle_count, &Particles->position, &Particles->velocity, WINDOW_HEIGHT); /* Pityesz */
-    simulate_particles(nuclei, &Particles, particle_count, nucleus_count, dt, max_steps); /* Pityesz */
+    Particles = initialize_particles(SIM_PAR.particle_count, &Particles->position, &Particles->velocity, SIM_PAR.image_height); /* Pityesz */
+    if (Particles == NULL) {
+        fprintf(stderr,"something went wrong with with initialising the particles\n");
+        return 1;
+    }
+    simulate_particles(nuclei, &Particles, SIM_PAR.particle_count, nucleus_count, SIM_PAR.dt, SIM_PAR.max_steps); /* Pityesz */
     /* Inside simulate_particles(), Pityesz will call Ábel's rk4_step(), which will use Zsolt's three physics functions. */
 
     /* Phase 3: Visualization & Output */
