@@ -3,8 +3,8 @@
 #include <math.h>
 #include <string.h>
 
-#include <SDL3/SDL.h>
-#include <SDL3/SDL_main.h>
+#include <SDL/SDL.h>
+#include <SDL/SDL_main.h>
 
 
 /*
@@ -568,6 +568,23 @@ int draw_trajectories(Vector2 prev_pos, Vector2 pos, RGB color, int physical_wid
 
 }
 
+int save_ppm(const char *filename, const RGB *image, int width, int height) {
+    FILE *ppm=fopen(filename, "w");
+    if (ppm == NULL) {
+        fprintf(stderr,"Unable to open file for writing.\n");
+        return 1;
+    }
+    fprintf(ppm,"P3\n %d %d\n 255\n", width, height);
+    for (int i = 0; i < height; i++) {
+        for (int j = 0; j < width; j++) {
+            fprintf(ppm, "%d %d %d ", image[i*width+j].r,image[i*width+j].g,image[i*width+j].b);
+        }
+        fprintf(ppm, "\n");
+    }
+    fclose(ppm);
+    return 0;
+}
+
 
 /* -------------------------
 * Main
@@ -617,8 +634,7 @@ int main(int argc, char *argv[]) {
     save_ppm();            /* Pityesz */
 
     /* Clean up */
-    free(nuclei);
-    free_memory(nuclei,Particles,SIM_PAR);         /* Shared responsibility */
+    free(nuclei);/* Shared responsibility */
 
     return 0;
 }
