@@ -244,16 +244,14 @@ void numerical_calculations(AlphaParticle *alpha, const Nucleus nuclei[], int nu
 AlphaParticle *initialize_particles(SimulationParameters SIMPAR) {
     AlphaParticle *Particles;
     int i;
-    if (SIMPAR.particle_count <= 0 || SIMPAR.initial_velocity == NULL) {
-        return NULL;
-        }
-    Particles = (AlphaParticle *)malloc(sizeof(AlphaParticle) * SIMPAR.particle_count);
+    Particles = malloc(sizeof(AlphaParticle) * SIMPAR.particle_count);
     if (Particles == NULL) {
         return NULL;
     }
+
     for (i = 0; i < SIMPAR.particle_count; i++) {
         Particles[i].position.x = SIMPAR.starting_x;
-        Particles[i].velocity.x = SIMPAR.initial_velocity[i]; /* Zsolt fell free to change to name of this but pls make sure */
+        Particles[i].velocity.x = SIMPAR.initial_velocity_min + ((double)rand() / RAND_MAX) * (SIMPAR.initial_velocity_max - SIMPAR.initial_velocity_min);
         Particles[i].velocity.y = 0.0;            /* to pay attention that here I assume initial_velocity in a way such that it has only x component */
         Particles[i].position.y = ((i + 0.5) * SIMPAR.physical_height / SIMPAR.particle_count); /* We must decide on the height of the playing field (here I used it as double) */
         Particles[i].COLOR.r = (i + 10) % 256;
@@ -361,7 +359,6 @@ SimulationParameters read_parameters(void) {              //Here I can't use ret
 
 
 Validate validate_parameters(SimulationParameters SIMPAR) { //Here I use isfinite tha checks if my number is finite only returns 0 if isfinite(INFINITY) ors isfinte(NAN) !isfinite is its inverse so it returns 0 when isfinite would return 1
-    int i;
 
     if (SIMPAR.image_width <= 0 || SIMPAR.image_height <= 0) {
         fprintf(stderr, "Invalid image dimensions.\n");
@@ -656,6 +653,7 @@ void draw(const RGB *image, int width, int height) { // Takes image and converts
 
 
 int main(int argc, char *argv[]) {
+    srand(time(NULL)); //for seed generation
     int nucleus_count = 0; /* will be scanned from file, 0 is only placeholder */
     Nucleus *nuclei = NULL;
     AlphaParticle *Particles = NULL; /* Array that will store Particles data */
