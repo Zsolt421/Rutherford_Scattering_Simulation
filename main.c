@@ -320,47 +320,39 @@ SimulationParameters read_parameters(void) {              //Here I can't use ret
         exit(EXIT_FAILURE);
     }
 
-    int i;  //Creating velocity array
-    SIMPAR.initial_velocity = malloc(SIMPAR.particle_count * sizeof(double));
-    if (SIMPAR.initial_velocity == NULL) {
-        fprintf(stderr, "Error allocating initial velocity\n"); //Checking if user entered 0 initial
+    printf("Enter velocity range minimum (m/s): ");
+    if (scanf("%lf", &SIMPAR.initial_velocity_min) != 1) {
+        fprintf(stderr, "Invalid starting X position\n");
         exit(EXIT_FAILURE);
     }
-
-    for (i=0;i<SIMPAR.particle_count;i++) {
-    printf("Enter initial velocity %d (m/s): ",i+1); //allocating velocities
-    if (scanf("%lf", &SIMPAR.initial_velocity[i]) != 1) { //Checking if entered velocity is a correct type
-        fprintf(stderr, "Invalid initial velocity\n");
-        free(SIMPAR.initial_velocity);
+    
+    printf("Enter velocity range maximum (m/s): ");
+    if (scanf("%lf", &SIMPAR.initial_velocity_max) != 1) {
+        fprintf(stderr, "Invalid starting X position\n");
         exit(EXIT_FAILURE);
-        }
     }
 
     printf("Enter time step dt (s): ");
     if (scanf("%lf", &SIMPAR.dt) != 1) {
         fprintf(stderr, "Invalid time step input\n");
-        free(SIMPAR.initial_velocity);
         exit(EXIT_FAILURE);
     }
 
     printf("Enter maximum number of steps: ");
     if (scanf("%d", &SIMPAR.max_steps) != 1) {
         fprintf(stderr, "Invalid number of steps\n");
-        free(SIMPAR.initial_velocity);
         exit(EXIT_FAILURE);
     }
 
     printf("Enter nuclei input filename: ");
     if (scanf("%255s", SIMPAR.nuclei_filename) != 1) {
         fprintf(stderr, "Invalid filename\n");
-        free(SIMPAR.initial_velocity);
         exit(EXIT_FAILURE);
     }
 
     printf("Enter output PPM filename: ");
     if (scanf("%255s", SIMPAR.output_filename) != 1) {
         fprintf(stderr, "Invalid filename\n");
-        free(SIMPAR.initial_velocity);
         exit(EXIT_FAILURE);
     }
 
@@ -382,8 +374,8 @@ Validate validate_parameters(SimulationParameters SIMPAR) { //Here I use isfinit
         return VALID;
         }
 
-    if (SIMPAR.particle_count <= 0 || SIMPAR.initial_velocity == NULL) {
-        fprintf(stderr, "Invalid particle count or velocity array.\n");
+    if (SIMPAR.particle_count <= 0 || SIMPAR.initial_velocity_max < SIMPAR.initial_velocity_min || SIMPAR.initial_velocity_min <= 0) {
+        fprintf(stderr, "Invalid particle count or velocity range\n");
         return VALID;
         }
 
@@ -391,13 +383,6 @@ Validate validate_parameters(SimulationParameters SIMPAR) { //Here I use isfinit
         fprintf(stderr, "Invalid starting X position.\n");
         return VALID;
         }
-
-    for (i = 0; i < SIMPAR.particle_count; i++) {
-        if (!isfinite(SIMPAR.initial_velocity[i]) || SIMPAR.initial_velocity[i] <= 0.0) {
-            fprintf(stderr,"Invalid initial velocity for particle %d.\n",i + 1);
-            return VALID;
-            }
-    }
 
     if (!isfinite(SIMPAR.dt) || SIMPAR.dt <= 0.0 || SIMPAR.dt >= 1.0) {
         fprintf(stderr, "Invalid time step.\n");
@@ -677,18 +662,15 @@ int main(int argc, char *argv[]) {
 
     /* Phase 2: User Input & File Handling */
     SimulationParameters SIM_PAR = read_parameters();     /* Zsolt */
-    if (validate_parameters(SIM_PAR) == INVALID){
+    if (validate_parameters(SIM_PAR) != INVALID){
         printf("Simulation parameters validated.\n");
     }
-
     else{
         fprintf(stderr,"There is one or more invalid parameters.\n");
-        free(SIM_PAR.initial_velocity);
         return 1;
     }
 
     if (validate_file(SIM_PAR) == INVALID) {
-        free(SIM_PAR.initial_velocity);
         return 1;
     }
 
