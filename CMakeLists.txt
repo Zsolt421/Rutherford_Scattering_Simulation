@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.16)
 project(Rutherford_Scattering_Simulation C)
 
 add_executable(Rutherford main.c)
-
+add_executable(Szoszmoty Szoszmoty.c)
 # SDL 1.2 helye a sajat gepemen
 set(SDL_ROOT
         "C:/Users/István/OneDrive - movarinfo/Asztal/Studies/Programozás/BHW/mingw-w64-ucrt-x86_64-SDL-1.2.15+r419+gef3a6c05-2-any.pkg/ucrt64"
