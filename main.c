@@ -303,15 +303,19 @@ AlphaParticle *initialize_particles(SimulationParameters SIMPAR) {
     if (Particles == NULL) {
         return NULL;
     }
+    if (sizeof(Particles) > SIMPAR.particle_count) {
+        free(Particles);
+        return NULL;
+    }
 
     for (i = 0; i < SIMPAR.particle_count; i++) {
         Particles[i].position.x = SIMPAR.starting_x;
         Particles[i].velocity.x = SIMPAR.initial_velocity_min + ((double)rand() / RAND_MAX) * (SIMPAR.initial_velocity_max - SIMPAR.initial_velocity_min);
         Particles[i].velocity.y = 0.0;            /* to pay attention that here I assume initial_velocity in a way such that it has only x component */
         Particles[i].position.y = ((i + 0.5) * SIMPAR.physical_height / SIMPAR.particle_count); /* We must decide on the height of the playing field (here I used it as double) */
-        Particles[i].COLOR.r = (i + 10) % 256;
-        Particles[i].COLOR.g = ((i + 10) / 256) % 256;
-        Particles[i].COLOR.b = ((i + 10) / 65536) % 256;
+        Particles[i].COLOR.r = 100 + (i * 37LL) % 156; /* LL makes it so that the multiplication is not intiger type*/
+        Particles[i].COLOR.g = 80 + (i * 67LL) % 176;
+        Particles[i].COLOR.b = 100 + (i * 97LL) % 156;
     }
     return Particles;
 }
@@ -426,7 +430,7 @@ Validate validate_parameters(SimulationParameters SIMPAR) { //Here I use isfinit
         return INVALID;
         }
 
-    if (SIMPAR.particle_count <= 0 || SIMPAR.initial_velocity_max < SIMPAR.initial_velocity_min || SIMPAR.initial_velocity_min <= 0) {
+    if (SIMPAR.particle_count <= 0 || SIMPAR.initial_velocity_max < SIMPAR.initial_velocity_min || SIMPAR.initial_velocity_min <= 0 || !isfinite(SIMPAR.initial_velocity_min) || !isfinite(SIMPAR.initial_velocity_max)) {
         fprintf(stderr, "Invalid particle count or velocity range\n");
         return INVALID;
         }
@@ -477,7 +481,7 @@ Validate validate_file(SimulationParameters SP) {
 
 
 Validate validate_nuclei(SimulationParameters SIMPAR, int read_count, int count, double x, double y, int Z){
-    if (x > SIMPAR.physical_width || y > SIMPAR.physical_height){
+    if (x > SIMPAR.physical_width || y > SIMPAR.physical_height || !isfinite(x) || !isfinite(y)) {
         fprintf(stderr, "Nuclei position invalid in %s line %d", SIMPAR.nuclei_filename, count+1);
         return INVALID;
     }
@@ -514,6 +518,7 @@ Nucleus *read_nuclei(SimulationParameters SIMPAR, int *out_count) {
 
     while (fgets(line, sizeof(line), file) != NULL) {
 
+        Z = 79;                  /*Required so Z does not stay uninitialised*/
         read_count = sscanf(line, "%lf %lf %d", &x, &y, &Z);
 
         if (read_count >= 2) {
@@ -598,29 +603,29 @@ int save_ppm(const char *filename, const RGB *image, int width, int height) {
 }
 
 
-void draw(const RGB *image, int width, int height) { // Takes image and converts SDL compatible and draws
+int draw(const RGB *image, int width, int height) { // Takes image and converts SDL compatible and draws
     SDL_Event ev; //Create the exit
     if (SDL_Init(SDL_INIT_VIDEO) < 0) { //Initialises SDL
         fprintf(stderr, "SDL init error: %s\n", SDL_GetError());
-        return;
+        return INVALID;
     }
     SDL_Surface *screen = SDL_SetVideoMode(width, height, 32, SDL_SWSURFACE); // screen will be shown
     if (screen == NULL) {
         fprintf(stderr, "SDL screen error: %s\n", SDL_GetError());
         SDL_Quit();
-        return;
+        return INVALID;
     }
     SDL_Surface *surface = SDL_CreateRGBSurface(SDL_SWSURFACE, width, height, 32, 0, 0, 0, 0); //SDL Compatible data storage
     if (surface == NULL) {
         fprintf(stderr, "SDL error: %s\n", SDL_GetError());
         SDL_Quit();
-        return;
+        return INVALID;
     }
     if (SDL_MUSTLOCK(surface) && SDL_LockSurface(surface) < 0) {
         fprintf(stderr, "SDL lock error: %s\n", SDL_GetError());
         SDL_FreeSurface(surface);
         SDL_Quit();
-        return;
+        return INVALID;
     }
     for (int i = 0; i < height; i++) {
         for (int j = 0; j < width; j++) {
@@ -636,17 +641,18 @@ void draw(const RGB *image, int width, int height) { // Takes image and converts
         fprintf(stderr, "SDL blit error: %s\n", SDL_GetError());
         SDL_FreeSurface(surface);
         SDL_Quit();
-        return;
+        return INVALID;
     }
     if (SDL_Flip(screen) < 0) {
         fprintf(stderr, "SDL flip error: %s\n", SDL_GetError());
         SDL_FreeSurface(surface);
         SDL_Quit();
-        return;
+        return INVALID;
     }
     while (SDL_WaitEvent(&ev) && ev.type != SDL_QUIT) {}
     SDL_FreeSurface(surface);
     SDL_Quit();
+    return VALID;
 }
 
 
@@ -668,6 +674,10 @@ int main(int argc, char *argv[]) {
     }
     else{
         fprintf(stderr,"There is one or more invalid parameters.\n");
+        return 1;
+    }
+
+    if (validate_file(SIM_PAR) == INVALID) {
         return 1;
     }
 
@@ -702,8 +712,13 @@ int main(int argc, char *argv[]) {
 
     /* Phase 3: Visualization & Output */
     draw_nuclei();         /* Ábel */
-    draw(image, SIM_PAR.image_width, SIM_PAR.image_height);           /* Pityesz */
     save_ppm(SIM_PAR.output_filename, image, SIM_PAR.image_width, SIM_PAR.image_height);
+    if (draw(image, SIM_PAR.image_width, SIM_PAR.image_height) == INVALID) {        /* Pityesz */
+        free(image);
+        free(nuclei);
+        free(Particles);
+        return 1;
+    }
 
     /* Clean up */
     free(Particles);
