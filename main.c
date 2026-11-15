@@ -40,8 +40,7 @@ typedef struct
 } Vector2;
 /* //position, atomic number (positive charge, defaults to 79 if missing) */
 typedef struct {
-    double x;
-    double y;
+    Vector2 pos;
     int Z;
 } Nucleus;
 /* //color definition for unique colors */
@@ -71,6 +70,11 @@ typedef struct {
     char output_filename[256];
 } SimulationParameters;
 
+typedef struct {
+    int x;
+    int y
+} Pixel2;
+
 /* ------------------------- 
 * Definition of constants      
 ------------------------- */
@@ -97,6 +101,18 @@ Vector2 vec_scale(Vector2 v, double factor) {
     return res;
 }
 
+int physical_to_pixel_x(double x, double physical_width, int image_width) {
+    int px = round(x / physical_width * (image_width - 1));
+    return px;
+} //x is the position of the object
+
+
+int physical_to_pixel_y(double y, double physical_height, int image_height) {
+    int py = round(y / physical_height * (image_height - 1));
+    return py;
+} //x is the position of the object
+
+
 /* ------------------------- 
 * Functions of phase 3       
  ------------------------- */
@@ -109,8 +125,8 @@ Vector2 calculate_coulomb_force(Vector2 position, Nucleus nucleus){
     double Fx, Fy, dx, dy, d;
     Vector2 v;
 
-    dx = position.x - nucleus.x;
-    dy = position.y - nucleus.y;
+    dx = position.x - nucleus.pos.x;
+    dy = position.y - nucleus.pos.y;
     d = sqrt(dx * dx + dy * dy);
     /* the coulomb force multiplied by the direction components, sin(dy/d) or the cos(dx/d), but bc we dont know the angle we use the dx formula */
     Fx = COULOMB_CONSTANT * (ALPHA_CHARGE * nucleus.Z * ELEMENTARY_CHARGE) * dx / (d * d * d);
@@ -350,6 +366,8 @@ Validate validate_nuclei(SimulationParameters SIMPAR, int read_count, int count,
 
 }
 
+//!CHANGED
+
 Nucleus *read_nuclei(SimulationParameters SIMPAR, int *out_count) {
     FILE *file;
     Nucleus *p = NULL;
@@ -373,6 +391,7 @@ Nucleus *read_nuclei(SimulationParameters SIMPAR, int *out_count) {
         if (read_count >= 2) {
 
             if (validate_nuclei(SIMPAR,read_count, count,x,y,Z) == INVALID){
+                free(p);
                 return NULL;
             }
 
@@ -385,8 +404,8 @@ Nucleus *read_nuclei(SimulationParameters SIMPAR, int *out_count) {
             }
             p = temp;
 
-            p[count].x = x;
-            p[count].y = y;
+            p[count].pos.x = x;
+            p[count].pos.y = y;
             p[count].Z = (read_count == 3) ? Z : 79;
 
             count++;
@@ -394,6 +413,7 @@ Nucleus *read_nuclei(SimulationParameters SIMPAR, int *out_count) {
         
         else {
             fprintf(stderr, "Not enough parameters in %s, line %d", SIMPAR.nuclei_filename, count+1);
+            free(p);
             return NULL;
         }
     }
@@ -406,21 +426,119 @@ Nucleus *read_nuclei(SimulationParameters SIMPAR, int *out_count) {
 * Functions of phase 3       
  ------------------------- */
 
-int physical_to_pixel_x(double x, double physical_width, int image_width) {
-    int px = round(x / physical_width * (image_width - 1));
-    return px;
-} //& x is the position of the object
+
+RGB *create_image(int width, int height) {
+    RGB *image;
+    int pixel_count, i;
+    pixel_count = (size_t)width * (size_t)height;
+    image = malloc(pixel_count * sizeof(RGB));
 
 
-int pixel_to_physical(double px, double physical_width, int image_width) {
-    int x = px / physical_width * (image_width - 1);
-    return x;
-} //& px is the pixel position
+    if (image == NULL) {
+        return NULL;
+    }
+    for (i = 0; i < pixel_count; i++) {
+        image[i].r = 0;
+        image[i].g = 0;
+        image[i].b = 0;
+    }
+
+    return image;
+}
+
+
+int color_pixel(int image_width, int iy, int ix, RGB *image, RGB color) {
+    int position = round(iy * image_width + ix);
+    image[position].r = color.r;
+    image[position].g = color.g;
+    image[position].b = color.b;
+    return 1;
+}
+
+//!NEW STUFF
+
+//draw one nuclei w physical coords x,y but radius in pixels
+void draw_single_nucleus(Nucleus nuclei, int r, SimulationParameters SP,RGB *image){
+    int sim_x = physical_to_pixel_x(nuclei.pos.x,SP.physical_width, SP.image_width);
+    int sim_y = physical_to_pixel_y(nuclei.pos.y,SP.physical_height, SP.image_height);
+    RGB color = {255,255,255};
+
+    for (int i = sim_x-r; i <= sim_x+r; i++){
+        int dx = abs(sim_x-i);
+        for (int j = sim_y-r; j <= sim_y+r; j++){
+            int dy = abs(sim_y-j);
+            if (dx*dx+dy*dy <= r*r && i < SP.image_width && j < SP.image_height){ // do i need to check <0 ??
+                color_pixel(SP.image_width,j,i, image, color);
+            }
+        }
+    }
+}
+
+void draw_nuclei(Nucleus *nuclei,int nucleus_count,int r,SimulationParameters SP,RGB *image){
+
+    for (int i = 0; i < nucleus_count; i++){
+        draw_single_nucleus(nuclei[i],r,SP,image);
+    }
+    
+}
+//! CHANGES
+//!not functional physical stuff is double!!
+int draw_trajectories(Vector2 prev_pos, Vector2 pos, RGB color, int physical_width, int image_width, int physical_height, int image_height, RGB *image) {
+    int ix, iy;
+    Pixel2 pp;
+    Pixel2 p;
+    pp.x = physical_to_pixel_x(prev_pos.x, physical_width, image_width);
+    p.x = physical_to_pixel_x(pos.x, physical_width, image_width);
+    pp.y = physical_to_pixel_y(prev_pos.y, physical_height, image_height);
+    p.y = physical_to_pixel_y(pos.y, physical_height, image_height);
+
+    int dx = p.x - pp.x;
+    int dy = p.y - pp.y;
+
+    int steps;
+
+    if (abs(dx) > abs(dy)) {
+        steps = abs(dx);
+    }
+    else {
+        steps = abs(dy);
+    }
+
+    double x = pp.x;
+    double y = pp.y;
+
+    if (steps == 0) {
+        color_pixel(image_width, pp.y, pp.x, image, color);
+        return 1;
+    }
+
+    double x_step = (double)dx / steps;
+    double y_step = (double)dy / steps;
+
+    for (int i = 0; i <= steps; i++) {
+        ix = (int)round(x);
+        iy = (int)round(y);
+
+        if (ix >= 0 && ix < image_width && iy >= 0 && iy < image_height) {
+            color_pixel(image_width, iy, ix, image, color);
+        }
+
+        x += x_step;
+        y += y_step;
+    }
+
+    return 1;
+
+}
+
+
 
 /* ------------------------- 
 * Main                      
  ------------------------- */
 int main() {
+    int r = 5; //nuclei radius
+
     int nucleus_count = 0; /* will be scanned from file, 0 is only placeholder */
     Nucleus *nuclei = NULL;
     AlphaParticle *Particles; /* Array that will store Particles data */
@@ -455,8 +573,10 @@ int main() {
     /* Inside simulate_particles(), Pityesz will call Ábel's rk4_step(), which will use Zsolt's three physics functions. */
 
     /* Phase 3: Visualization & Output */
-    create_image();        /* Zsolt */
-    draw_nuclei();         /* Ábel */
+    RGB *image = create_image();        /* Zsolt */
+    
+    draw_nuclei(nuclei,nucleus_count,r,SIM_PAR,image);
+
     draw_trajectories();   /* Ábel */
     save_ppm();            /* Pityesz */
 
