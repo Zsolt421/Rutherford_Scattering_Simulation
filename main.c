@@ -341,103 +341,103 @@ AlphaParticle *simulate_particles(const Nucleus nuclei[], AlphaParticle *Particl
  ------------------------- */
 
 
-SimulationParameters read_parameters(void) {              //Here I can't use return 1 to exit because my return tyoe uns SMP so I use exit(EXIT_FAILURE) wich kills of the program
-    SimulationParameters SIMPAR = {0}; /* SIMULATION PARAMETERS */
+Validate read_parameters(SimulationParameters *SIMPAR) {              //Here I can't use return 1 to exit because my return tyoe uns SMP so I use exit(EXIT_FAILURE) wich kills of the program
+    *SIMPAR = (SimulationParameters){0}; /* SIMULATION PARAMETERS */
 
     printf("Enter image width (pixels): ");
     fflush(stdout);
-    if (scanf("%d", &SIMPAR.image_width) !=1) {
+    if (scanf("%d", &SIMPAR->image_width) !=1) {
         fprintf(stderr, "Invalid image width\n");
-        exit(EXIT_FAILURE);
+        return INVALID;
     }
 
     printf("Enter image height (pixels): ");
     fflush(stdout);
-    if (scanf("%d", &SIMPAR.image_height) != 1) {
+    if (scanf("%d", &SIMPAR->image_height) != 1) {
         fprintf(stderr, "Invalid image height\n");
-        exit(EXIT_FAILURE);
+        return INVALID;
     }
 
     printf("Enter physical width (m)(optimal around 10^-9): ");
     fflush(stdout);
-    if (scanf("%lf", &SIMPAR.physical_width) != 1) {
+    if (scanf("%lf", &SIMPAR->physical_width) != 1) {
         fprintf(stderr, "Invalid physical width\n");
-        exit(EXIT_FAILURE);
+        return INVALID;
     }
 
     printf("Enter physical height (m)(optimal around 10^-9): ");
     fflush(stdout);
-    if (scanf("%lf", &SIMPAR.physical_height) != 1) {
+    if (scanf("%lf", &SIMPAR->physical_height) != 1) {
         fprintf(stderr, "Invalid physical height\n");
-        exit(EXIT_FAILURE);
+        return INVALID;
     }
 
     printf("Enter number of alpha particles: "); //Error if invalid particle count
     fflush(stdout);
-    if (scanf("%d", &SIMPAR.particle_count)!=1 || SIMPAR.particle_count <= 0) {
+    if (scanf("%d", &SIMPAR->particle_count)!=1 || SIMPAR->particle_count <= 0) {
         fprintf(stderr, "Invalid number of alpha particles\n");
-        exit(EXIT_FAILURE);
+        return INVALID;
     }
 
     printf("Enter starting X position (m): ");
     fflush(stdout);
-    if (scanf("%lf", &SIMPAR.starting_x) != 1) {
+    if (scanf("%lf", &SIMPAR->starting_x) != 1) {
         fprintf(stderr, "Invalid starting X position\n");
-        exit(EXIT_FAILURE);
+        return INVALID;
     }
 
     printf("Enter velocity range minimum (m/s): ");
     fflush(stdout);
-    if (scanf("%lf", &SIMPAR.initial_velocity_min) != 1) {
+    if (scanf("%lf", &SIMPAR->initial_velocity_min) != 1) {
         fprintf(stderr, "Invalid velocity range minimum\n");
-        exit(EXIT_FAILURE);
+        return INVALID;
     }
 
     printf("Enter velocity range maximum (m/s): ");
     fflush(stdout);
-    if (scanf("%lf", &SIMPAR.initial_velocity_max) != 1) {
+    if (scanf("%lf", &SIMPAR->initial_velocity_max) != 1) {
         fprintf(stderr, "Invalid velocity range maximum\n");
-        exit(EXIT_FAILURE);
+        return INVALID;
     }
 
     printf("Enter time step dt (s): ");
     fflush(stdout);
-    if (scanf("%lf", &SIMPAR.dt) != 1) {
+    if (scanf("%lf", &SIMPAR->dt) != 1) {
         fprintf(stderr, "Invalid time step input\n");
-        exit(EXIT_FAILURE);
+        return INVALID;
     }
 
     printf("Enter maximum number of steps: ");
     fflush(stdout);
-    if (scanf("%d", &SIMPAR.max_steps) != 1) {
+    if (scanf("%d", &SIMPAR->max_steps) != 1) {
         fprintf(stderr, "Invalid number of steps\n");
-        exit(EXIT_FAILURE);
+        return  INVALID;
     }
 
     printf("Enter nuclei input filename (with or without .txt): ");
     fflush(stdout);
-    if (scanf("%251s", SIMPAR.nuclei_filename) != 1) {
+    if (scanf("%251s", SIMPAR->nuclei_filename) != 1) {
         fprintf(stderr, "Invalid filename scan\n");
-        exit(EXIT_FAILURE);
+        return INVALID;
     }
 
     printf("Enter output PPM filename (with or without .ppm): ");
     fflush(stdout);
-    if (scanf("%251s", SIMPAR.output_filename) != 1) {
+    if (scanf("%251s", SIMPAR->output_filename) != 1) {
         fprintf(stderr, "Invalid filename\n");
-        exit(EXIT_FAILURE);
+        return INVALID;
     }
 
-    size_t len = strlen(SIMPAR.nuclei_filename);
-    if (len < 4 || strcmp(SIMPAR.nuclei_filename + len - 4, ".txt") != 0) {
-        strcat(SIMPAR.nuclei_filename, ".txt");
+    size_t len = strlen(SIMPAR->nuclei_filename);
+    if (len < 4 || strcmp(SIMPAR->nuclei_filename + len - 4, ".txt") != 0) {
+        strcat(SIMPAR->nuclei_filename, ".txt");
     }
-    len = strlen(SIMPAR.output_filename);
-    if (len < 4 || strcmp(SIMPAR.output_filename + len - 4, ".ppm") != 0) {
-        strcat(SIMPAR.output_filename, ".ppm");
+    len = strlen(SIMPAR->output_filename);
+    if (len < 4 || strcmp(SIMPAR->output_filename + len - 4, ".ppm") != 0) {
+        strcat(SIMPAR->output_filename, ".ppm");
     }
 
-    return SIMPAR;
+    return VALID;
 }
 
 
@@ -625,17 +625,12 @@ void draw_single_nucleus(Nucleus nuclei, int r, SimulationParameters SP,RGB *ima
             }
         }
     }
-
-    return;
 }
 
 void draw_nuclei(Nucleus *nuclei,int nucleus_count,int r,SimulationParameters SP,RGB *image){
     for (int i = 0; i < nucleus_count; i++){
         draw_single_nucleus(nuclei[i],r,SP,image);
-        printf("%d\n",i);
     }
-
-    return;
 }
 
 int save_ppm(const char *filename, const RGB *image, int width, int height) {
@@ -708,21 +703,21 @@ int draw(const RGB *image, int width, int height) { // Takes image and converts 
     return VALID;
 }
 
+/*normal mode*/
 
-/* -------------------------
-* Main
- ------------------------- */
-
-
-int main(int argc, char *argv[]) {
+int normal_mode(void) {
     int r = 5; /* Radius of nuclei in pixels, from the newer implementation */
     srand(time(NULL)); //for seed generation
     int nucleus_count = 0; /* will be scanned from file, 0 is only placeholder */
+
     Nucleus *nuclei = NULL;
     AlphaParticle *Particles = NULL; /* Array that will store Particles data */
+    SimulationParameters SIM_PAR;
 
-    /* Phase 2: User Input & File Handling */
-    SimulationParameters SIM_PAR = read_parameters();     /* Zsolt */
+    if (read_parameters(&SIM_PAR) == INVALID) {
+        fprintf(stderr, "Invalid input. Returning to main menu.\n");
+        return 1;
+    }
     if (validate_parameters(SIM_PAR) == VALID){
         printf("Simulation parameters validated.\n");
     }
@@ -736,11 +731,11 @@ int main(int argc, char *argv[]) {
     }
 
     RGB *image = create_image(SIM_PAR.image_width, SIM_PAR.image_height);
-    if (image == NULL) {                                                    /*Zsolt*/
+    if (image == NULL) {
         fprintf(stderr,"Memory allocation for image failed\n");
         return 1;
     }
-    nuclei = read_nuclei(SIM_PAR, &nucleus_count);         /* Ábel - nuclei[0] -> nuclei[count-1] */
+    nuclei = read_nuclei(SIM_PAR, &nucleus_count);
     if (nuclei == NULL && nucleus_count == 0) {
         fprintf(stderr,"something went wrong with the file.\n");
         free(image);
@@ -763,8 +758,8 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    /* Phase 3: Visualization & Output */
-    draw_nuclei(nuclei, nucleus_count, r, SIM_PAR, image); /* Draw on top of paths */
+
+    draw_nuclei(nuclei, nucleus_count, r, SIM_PAR, image);
     if (save_ppm(SIM_PAR.output_filename, image, SIM_PAR.image_width, SIM_PAR.image_height) != 0) {
         fprintf(stderr, "save_ppm failed\n");
         free(image);
@@ -772,17 +767,46 @@ int main(int argc, char *argv[]) {
         free(Particles);
         return 1;
     }
-    if (draw(image, SIM_PAR.image_width, SIM_PAR.image_height) == INVALID) {        /* Pityesz */
+    if (draw(image, SIM_PAR.image_width, SIM_PAR.image_height) == INVALID) {
         free(image);
         free(nuclei);
         free(Particles);
         return 1;
     }
-
-    /* Clean up */
     free(Particles);
     free(nuclei);
-    free(image);        /* Shared responsibility */
-
+    free(image);
     return 0;
+}
+
+
+
+/* -------------------------
+* Main
+ ------------------------- */
+
+
+int main(void) {
+    int choice, True=0;
+    while (True == 0) {
+        printf("Select mode:\n- 1:Demo mode\n- 2:Read alpha from file\n- 3:Enter alpha by hand\n- 4:EXIT\n");
+        scanf("%d", &choice);
+        switch (choice) {
+            case 1:
+                demo_mode();
+                break;
+            case 2:
+                read_mode();
+                break;
+            case 3:
+                normal_mode();
+                break;
+            case 4:
+                True=1;
+                break;
+            default:
+                printf("Invalid choice.\n");
+                break;
+        }
+    }
 }
