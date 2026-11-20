@@ -8,23 +8,12 @@
 #undef main  /* SDL 1.2: use the normal C main() and console */
 
 
-/*
-extensions: Colorful Comments, indent-rainbow,  Party Owl '84, vscode-pets
-! Note: Image dimensions are measured in pixels (px), and
-! atomic number (Z) is dimensionless.
-
-? Recommended simulation parameters (SI units)
-?
-? Parameter          Value
-? -----------------------------
-? Image width        800 pixels
-? Image height       800 pixels
-? Physical width     1e-9 m
-? Physical height    1e-9 m
-? Starting X         0 m
-? Initial velocity   1e7 m/s
-? Time step (dt)     1e-19 s
-? Maximum steps      1000
+/* Image dimensions are in pixels; physical distances and velocities use SI
+ * units. Z is the dimensionless atomic number of a nucleus.
+ *
+ * Example settings: 800 x 800 pixels over a 1e-9 m x 1e-9 m region,
+ * starting_x = 0 m, initial velocity = 1e7 m/s, dt = 1e-19 s, and
+ * max_steps = 1000.
  */
 
 
@@ -36,25 +25,29 @@ typedef enum{
     INVALID,
     VALID,
 } Validate;
-/* //can be used to store position(x, y), velocity(vx, vy), force(Fx, Fy), accelaration(ax,ay) */
+/* A two-dimensional pair used for positions, velocities, forces, and
+ * accelerations. The meaning and units depend on the calculation using it.
+ */
 typedef struct
 {
     double x;
     double y;
 } Vector2;
-/* //position, atomic number (positive charge, defaults to 79 if missing) */
+/* Nucleus position in metres and atomic number. Input records may omit Z,
+ * in which case the file reader assigns the default value 79.
+ */
 typedef struct {
     double x;
     double y;
     int Z;
 } Nucleus;
-/* //color definition for unique colors */
+/* One pixel's red, green, and blue channels, each in the range 0..255. */
 typedef struct {
     unsigned char r;
     unsigned char g;
     unsigned char b;
 } RGB;
-/* //stores data for each alpha particle */
+/* State and display color for one positively charged alpha particle. */
 typedef struct {
     Vector2 position;
     Vector2 velocity;
@@ -76,6 +69,9 @@ typedef struct {
     char output_filename[256];
 } SimulationParameters;
 
+/* Integer image coordinates, as distinct from the physical metre-based
+ * coordinates stored in Vector2.
+ */
 typedef struct {
     int x;
     int y;
@@ -97,6 +93,7 @@ typedef struct {
  ------------------------- */
 
 
+/* Component-wise vector addition, shared by the integration calculations. */
 Vector2 vec_add(Vector2 a, Vector2 b) {
     Vector2 res;
     res.x = a.x + b.x;
@@ -105,6 +102,7 @@ Vector2 vec_add(Vector2 a, Vector2 b) {
 }
 
 
+/* Multiply both vector components by the same scalar. */
 Vector2 vec_scale(Vector2 v, double factor) {
     Vector2 res;
     res.x = v.x * factor;
@@ -113,16 +111,19 @@ Vector2 vec_scale(Vector2 v, double factor) {
 }
 
 
+/* Map a physical coordinate in the simulation region to the nearest pixel.
+ * The region's endpoints map to pixel 0 and image_width - 1 respectively.
+ */
 int physical_to_pixel_x(double x, double physical_width, int image_width) {
     int px = round(x / physical_width * (image_width - 1));
     return px;
-} //x is the position of the object
+}
 
 
 int physical_to_pixel_y(double y, double physical_height, int image_height) {
     int py = round(y / physical_height * (image_height - 1));
     return py;
-} //x is the position of the object
+}
 
 
 /* -------------------------
@@ -130,6 +131,11 @@ int physical_to_pixel_y(double y, double physical_height, int image_height) {
  ------------------------- */
 
 
+/* Return the electrostatic force on an alpha particle at position from one
+ * positively charged nucleus. The inverse-square Coulomb force is resolved
+ * into x/y components; coincident positions are singular and are not handled
+ * specially here.
+ */
 Vector2 calculate_coulomb_force(Vector2 position, Nucleus nucleus){
     long double Fx, Fy, dx, dy, d;
     Vector2 v;
@@ -137,7 +143,7 @@ Vector2 calculate_coulomb_force(Vector2 position, Nucleus nucleus){
     dx = position.x - nucleus.x;
     dy = position.y - nucleus.y;
     d = sqrt(dx * dx + dy * dy);
-    /* the coulomb force multiplied by the direction components, sin(dy/d) or the cos(dx/d), but bc we dont know the angle we use the dx formula */
+    /* Resolve the radial force along the displacement vector (dx, dy). */
     Fx = COULOMB_CONSTANT * (ALPHA_CHARGE * nucleus.Z * ELEMENTARY_CHARGE) * dx / (d * d * d);
     Fy = COULOMB_CONSTANT * (ALPHA_CHARGE * nucleus.Z * ELEMENTARY_CHARGE) * dy / (d * d * d);
 
@@ -148,7 +154,7 @@ Vector2 calculate_coulomb_force(Vector2 position, Nucleus nucleus){
 }
 
 Vector2 calculate_total_force(Vector2 position, const Nucleus nuclei[], int nucleus_count) {
-    /* F(r) = sum of Fi(r) */
+    /* Superpose the force contributions from all nuclei at the same position. */
     Vector2 Sum_of_forces = {0,0};
     Vector2 f;
     int i;
@@ -162,16 +168,17 @@ Vector2 calculate_total_force(Vector2 position, const Nucleus nuclei[], int nucl
 }
 
 
-/* Vector2 calculate_acceleration(Vector2 position, const Nucleus nuclei[], int nucleus_count) {
-    Vector2 accelaration_of_particle = {0,0};
+/* Earlier direct acceleration helper; the integrator below computes F/m at
+ * each Runge-Kutta stage instead.
+Vector2 calculate_acceleration(Vector2 position, const Nucleus nuclei[], int nucleus_count) {
+    Vector2 acceleration_of_particle = {0,0};
     Vector2 F = calculate_total_force(position, nuclei, nucleus_count);
-    accelaration_of_particle.x = F.x / ALPHA_MASS;
-    accelaration_of_particle.y = F.y / ALPHA_MASS;
-    return accelaration_of_particle;
+    acceleration_of_particle.x = F.x / ALPHA_MASS;
+    acceleration_of_particle.y = F.y / ALPHA_MASS;
+    return acceleration_of_particle;
 } */
 
-/*These are phase 3 functions, but for compiling they are necesearly to be here ps.Pityesz*/
-
+/* Set one image pixel if its coordinates are in bounds. */
 Validate color_pixel(int image_width, int image_height, int iy, int ix, RGB *image, RGB color) {
     if (ix < 0 || ix >= image_width || iy < 0 || iy >= image_height) {
         return INVALID; /* Nothing to draw inside the image */
@@ -183,6 +190,10 @@ Validate color_pixel(int image_width, int image_height, int iy, int ix, RGB *ima
     return VALID;
 }
 
+/* Rasterize the segment between two physical positions using evenly spaced
+ * samples (a digital differential analyzer). Pixel samples outside the image
+ * are ignored; only in-bounds pixels are written.
+ */
 Validate draw_trajectories(Vector2 prev_pos, Vector2 pos, RGB color, double physical_width, int image_width, double physical_height, int image_height, RGB *image) {
     int ix, iy;
     Pixel2 pp;
@@ -235,6 +246,10 @@ Validate draw_trajectories(Vector2 prev_pos, Vector2 pos, RGB color, double phys
 
 }
 
+/* Advance one particle for max_steps using classical fourth-order Runge-Kutta
+ * on dr/dt = v and dv/dt = F(r)/m. Each completed step is drawn before the
+ * particle's position and velocity are updated.
+ */
 Validate numerical_calculations(AlphaParticle *alpha, const Nucleus nuclei[], int nucleus_count, SimulationParameters SIMPAR, RGB *image){
     int t = 1;
     Vector2 k1_r, k1_v, F1;
@@ -245,14 +260,14 @@ Validate numerical_calculations(AlphaParticle *alpha, const Nucleus nuclei[], in
 
     while (t <= SIMPAR.max_steps) {
 
-        /* first step */
+        /* First RK4 stage: evaluate the derivatives at the current state. */
         k1_r = (*alpha).velocity;  /* k1_r = v */
 
         F1 = calculate_total_force((*alpha).position, nuclei, nucleus_count);
         k1_v = vec_scale(F1, 1.0/ ALPHA_MASS); /* k1_v = F(r)/m */
 
 
-        /* second step */
+        /* Second stage: estimate the state halfway through the time step. */
         k2_r = vec_add((*alpha).velocity, vec_scale(k1_v, 0.5 * SIMPAR.dt)); /* k2_r = v + 0.5 * dt * k1_v*/
 
         pos2 = vec_add((*alpha).position, vec_scale(k1_r, 0.5 * SIMPAR.dt)); /* r + 0.5 * dt * k1_r */
@@ -260,7 +275,7 @@ Validate numerical_calculations(AlphaParticle *alpha, const Nucleus nuclei[], in
         k2_v = vec_scale(F2, 1.0/ ALPHA_MASS); /* Y k2_v = F(r + 0.5 * dt * k1_r) / m */
 
 
-        /* third step */
+        /* Third stage: refine the midpoint estimate using stage two. */
         k3_r = vec_add((*alpha).velocity, vec_scale(k2_v, 0.5 * SIMPAR.dt)); /* k3_r = v + 0.5 * dt * k2_v*/
 
         pos3 = vec_add((*alpha).position, vec_scale(k2_r, 0.5 * SIMPAR.dt)); /* r + 0.5 * dt * k2_r */
@@ -268,7 +283,7 @@ Validate numerical_calculations(AlphaParticle *alpha, const Nucleus nuclei[], in
         k3_v = vec_scale(F3, 1.0/ ALPHA_MASS); /* k3_v = F(r + 0.5 * dt * k2_r) / m */
 
 
-        /* fourth step */
+        /* Fourth stage: estimate the derivatives at the end of the step. */
         k4_r = vec_add((*alpha).velocity, vec_scale(k3_v, SIMPAR.dt)); /* k4_r = v + dt * k3_v*/
 
         pos4 = vec_add((*alpha).position, vec_scale(k3_r, SIMPAR.dt)); /* r + dt * k3_r */
@@ -276,7 +291,7 @@ Validate numerical_calculations(AlphaParticle *alpha, const Nucleus nuclei[], in
         k4_v = vec_scale(F4, 1.0 / ALPHA_MASS); /* k4_v = F(r + dt * k3_r) / m */
 
 
-        /* Final update */
+        /* Combine the four stages with weights 1:2:2:1 to update the state. */
         sum_r.x = (k1_r.x + 2*k2_r.x + 2*k3_r.x + k4_r.x);
         sum_r.y = (k1_r.y + 2*k2_r.y + 2*k3_r.y + k4_r.y);
 
@@ -291,7 +306,7 @@ Validate numerical_calculations(AlphaParticle *alpha, const Nucleus nuclei[], in
             return INVALID;
         }
 
-        /* increase step */
+        /* Commit the completed step and continue with the new state. */
         (*alpha).position = r_new;
         (*alpha).velocity = v_new;
         t++;
@@ -312,9 +327,11 @@ AlphaParticle *initialize_particles(SimulationParameters SIMPAR) {
     for (i = 0; i < SIMPAR.particle_count; i++) {
         Particles[i].position.x = SIMPAR.starting_x;
         Particles[i].velocity.x = SIMPAR.initial_velocity_min + ((double)rand() / RAND_MAX) * (SIMPAR.initial_velocity_max - SIMPAR.initial_velocity_min);
-        Particles[i].velocity.y = 0.0;            /* to pay attention that here I assume initial_velocity in a way such that it has only x component */
-        Particles[i].position.y = ((i + 0.5) * SIMPAR.physical_height / SIMPAR.particle_count); /* We must decide on the height of the playing field (here I used it as double) */
-        Particles[i].COLOR.r = 100 + (i * 37LL) % 156; /* LL makes it so that the multiplication is not intiger type*/
+        /* Particles enter horizontally and are evenly spaced across the field. */
+        Particles[i].velocity.y = 0.0;
+        Particles[i].position.y = ((i + 0.5) * SIMPAR.physical_height / SIMPAR.particle_count);
+        /* Vary each RGB channel by particle index to distinguish trajectories. */
+        Particles[i].COLOR.r = 100 + (i * 37LL) % 156;
         Particles[i].COLOR.g = 80 + (i * 67LL) % 176;
         Particles[i].COLOR.b = 100 + (i * 97LL) % 156;
     }
@@ -324,6 +341,7 @@ AlphaParticle *initialize_particles(SimulationParameters SIMPAR) {
 
 AlphaParticle *simulate_particles(const Nucleus nuclei[], AlphaParticle *Particles, int nucleus_count, SimulationParameters SIMPAR, RGB *image) {
     int i;
+    /* Reject inconsistent state before accessing the particle/nucleus arrays. */
     if (Particles== NULL || SIMPAR.particle_count <= 0 || SIMPAR.dt  <= 0.0 || SIMPAR.max_steps <= 0 || nucleus_count < 0 || (nucleus_count > 0 && nuclei == NULL)) {
         return NULL;
     }
@@ -341,8 +359,12 @@ AlphaParticle *simulate_particles(const Nucleus nuclei[], AlphaParticle *Particl
  ------------------------- */
 
 
-Validate read_parameters(SimulationParameters *SIMPAR) {              //Here I can't use return 1 to exit because my return tyoe uns SMP so I use exit(EXIT_FAILURE) wich kills of the program
-    *SIMPAR = (SimulationParameters){0}; /* SIMULATION PARAMETERS */
+/* Read the interactive configuration. File extensions are appended when
+ * omitted; parameter ranges and file checks are handled by the validation
+ * and input-reading routines.
+ */
+Validate read_parameters(SimulationParameters *SIMPAR) {
+    *SIMPAR = (SimulationParameters){0}; /* Start with empty names and zeroed fields. */
 
     printf("Enter image width (pixels): ");
     fflush(stdout);
@@ -372,7 +394,7 @@ Validate read_parameters(SimulationParameters *SIMPAR) {              //Here I c
         return INVALID;
     }
 
-    printf("Enter number of alpha particles: "); //Error if invalid particle count
+    printf("Enter number of alpha particles: ");
     fflush(stdout);
     if (scanf("%d", &SIMPAR->particle_count)!=1 || SIMPAR->particle_count <= 0) {
         fprintf(stderr, "Invalid number of alpha particles\n");
@@ -441,7 +463,8 @@ Validate read_parameters(SimulationParameters *SIMPAR) {              //Here I c
 }
 
 
-Validate validate_parameters(SimulationParameters SIMPAR) { //Here I use isfinite tha checks if my number is finite only returns 0 if isfinite(INFINITY) ors isfinte(NAN) !isfinite is its inverse so it returns 0 when isfinite would return 1
+/* Check numeric settings for valid dimensions, ranges, and finite values. */
+Validate validate_parameters(SimulationParameters SIMPAR) {
 
     if (SIMPAR.image_width <= 0 || SIMPAR.image_height <= 0) {
         fprintf(stderr, "Invalid image dimensions.\n");
@@ -481,6 +504,7 @@ Validate validate_parameters(SimulationParameters SIMPAR) { //Here I use isfinit
 Validate validate_file(SimulationParameters SP) {
     FILE *file;
 
+    /* Reject empty or identical names, then confirm the input file is readable. */
     if (SP.nuclei_filename[0] == '\0' || SP.output_filename[0] == '\0') {
         printf("Empty filename.\n");
         return INVALID;
@@ -505,6 +529,9 @@ Validate validate_file(SimulationParameters SP) {
 
 
 Validate validate_nuclei(SimulationParameters SIMPAR, int read_count, int count, double x, double y, int Z){
+    /* Nucleus coordinates may lie on the inclusive physical-region boundary.
+     * A two-field record has no explicit Z and uses the caller's default.
+     */
     if (x < 0.0 || y < 0.0 || x > SIMPAR.physical_width || y > SIMPAR.physical_height || !isfinite(x) || !isfinite(y)) {
         fprintf(stderr, "Nuclei position invalid in %s line %d", SIMPAR.nuclei_filename, count+1);
         return INVALID;
@@ -534,6 +561,10 @@ Nucleus *read_nuclei(SimulationParameters SIMPAR, int *out_count) {
     int Z;
     int read_count;
 
+    /* Read one whitespace-separated `x y [Z]` record per line. Coordinates
+     * are in metres; omitted atomic numbers default to 79. Malformed lines
+     * fail the whole read, while successfully parsed records grow the array.
+     */
     file = fopen(SIMPAR.nuclei_filename, "r");
     if (file == NULL) {
         *out_count = 0;
@@ -542,7 +573,7 @@ Nucleus *read_nuclei(SimulationParameters SIMPAR, int *out_count) {
 
     while (fgets(line, sizeof(line), file) != NULL) {
 
-        Z = 79;                  /*Required so Z does not stay uninitialised*/
+        Z = 79;                  /* Default atomic number when the line omits Z. */
         read_count = sscanf(line, "%lf %lf %d", &x, &y, &Z);
 
         if (read_count >= 2) {
@@ -600,6 +631,9 @@ RGB *create_image(int width, int height) {
     if (image == NULL) {
         return NULL;
     }
+    /* Store pixels contiguously in row-major order and initialize the canvas
+     * to black before trajectories and nuclei are drawn.
+     */
     for (i = 0; i < pixel_count; i++) {
         image[i].r = 0;
         image[i].g = 0;
@@ -614,7 +648,7 @@ RGB *create_image(int width, int height) {
 void draw_single_nucleus(Nucleus nuclei, int r, SimulationParameters SP,RGB *image){
     int sim_x = physical_to_pixel_x(nuclei.x,SP.physical_width, SP.image_width);
     int sim_y = physical_to_pixel_y(nuclei.y,SP.physical_height, SP.image_height);
-    RGB color = {255,255,255};
+    RGB color = {255,255,255}; /* Nuclei are displayed as white filled circles. */
 
     for (int i = sim_x-r; i <= sim_x+r; i++){
         int dx = abs(sim_x-i);
@@ -628,12 +662,14 @@ void draw_single_nucleus(Nucleus nuclei, int r, SimulationParameters SP,RGB *ima
 }
 
 void draw_nuclei(Nucleus *nuclei,int nucleus_count,int r,SimulationParameters SP,RGB *image){
+    /* Overlay every nucleus after the particle trajectories have been drawn. */
     for (int i = 0; i < nucleus_count; i++){
         draw_single_nucleus(nuclei[i],r,SP,image);
     }
 }
 
 int save_ppm(const char *filename, const RGB *image, int width, int height) {
+    /* Write a text-mode PPM (P3) image in row-major RGB order. */
     FILE *ppm=fopen(filename, "w");
     if (ppm == NULL) {
         fprintf(stderr,"Unable to open file for writing.\n");
@@ -651,19 +687,22 @@ int save_ppm(const char *filename, const RGB *image, int width, int height) {
 }
 
 
-int draw(const RGB *image, int width, int height) { // Takes image and converts SDL compatible and draws
-    SDL_Event ev; //Create the exit
-    if (SDL_Init(SDL_INIT_VIDEO) < 0) { //Initialises SDL
+/* Display the RGB buffer in an SDL 1.2 window and keep it open until the user
+ * closes the window. SDL surfaces created here are released on exit/errors.
+ */
+int draw(const RGB *image, int width, int height) {
+    SDL_Event ev;
+    if (SDL_Init(SDL_INIT_VIDEO) < 0) {
         fprintf(stderr, "SDL init error: %s\n", SDL_GetError());
         return INVALID;
     }
-    SDL_Surface *screen = SDL_SetVideoMode(width, height, 32, SDL_SWSURFACE); // screen will be shown
+    SDL_Surface *screen = SDL_SetVideoMode(width, height, 32, SDL_SWSURFACE);
     if (screen == NULL) {
         fprintf(stderr, "SDL screen error: %s\n", SDL_GetError());
         SDL_Quit();
         return INVALID;
     }
-    SDL_Surface *surface = SDL_CreateRGBSurface(SDL_SWSURFACE, width, height, 32, 0, 0, 0, 0); //SDL Compatible data storage
+    SDL_Surface *surface = SDL_CreateRGBSurface(SDL_SWSURFACE, width, height, 32, 0, 0, 0, 0);
     if (surface == NULL) {
         fprintf(stderr, "SDL error: %s\n", SDL_GetError());
         SDL_Quit();
@@ -697,21 +736,23 @@ int draw(const RGB *image, int width, int height) { // Takes image and converts 
         SDL_Quit();
         return INVALID;
     }
+    /* Block for window events so the image remains visible until closed. */
     while (SDL_WaitEvent(&ev) && ev.type != SDL_QUIT) {}
     SDL_FreeSurface(surface);
     SDL_Quit();
     return VALID;
 }
 
-/*normal mode*/
-
+/* Run the interactive simulation path: collect settings, load nuclei, create
+ * and simulate particles, save/display the image, then release owned buffers.
+ */
 int normal_mode(void) {
     int r = 5; /* Radius of nuclei in pixels, from the newer implementation */
     srand(time(NULL)); //for seed generation
-    int nucleus_count = 0; /* will be scanned from file, 0 is only placeholder */
+    int nucleus_count = 0; /* Set by read_nuclei after parsing the input file. */
 
     Nucleus *nuclei = NULL;
-    AlphaParticle *Particles = NULL; /* Array that will store Particles data */
+    AlphaParticle *Particles = NULL; /* Owned particle array, released before return. */
     SimulationParameters SIM_PAR;
 
     if (read_parameters(&SIM_PAR) == INVALID) {
@@ -742,8 +783,8 @@ int normal_mode(void) {
         return 1;
     }
 
-    /* Phase 1: Physics & Simulation */
-    Particles = initialize_particles(SIM_PAR); /* Pityesz */
+    /* Initialize and integrate the particle array, adding paths to image. */
+    Particles = initialize_particles(SIM_PAR);
     if (Particles == NULL) {
         fprintf(stderr,"something went wrong with with initialising the particles\n");
         free(image);
@@ -788,6 +829,7 @@ int normal_mode(void) {
 
 int main(void) {
     int choice, True=0;
+    /* Keep presenting the menu until the user selects the exit option. */
     while (True == 0) {
         printf("Select mode:\n- 1:Demo mode\n- 2:Read alpha from file\n- 3:Enter alpha by hand\n- 4:EXIT\n");
         scanf("%d", &choice);
