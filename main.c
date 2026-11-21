@@ -1112,7 +1112,7 @@ int read_mode(void) {
         int choice, True = 0;
         /* Keep presenting the menu until the user selects the exit option. */
         while (True == 0) {
-            printf("Select mode:\n- 1:Demo mode\n- 2:Read alpha from file\n- 3:Enter alpha by hand\n- 4:EXIT\n- 9:HELP\n");
+            printf("Select mode:\n- 1:Demo mode\n- 2:Read alpha from file\n- 3:Enter alpha by hand\n- 4:HELP\n- 9:EXIT\n");
             if (scanf("%d", &choice) != 1) {
                 fprintf(stderr, "Invalid input.\n");
                 while (getchar() != '\n'); /* Clear the input buffer */
@@ -1129,10 +1129,10 @@ int read_mode(void) {
                     normal_mode();
                     break;
                 case 4:
-                    True = 1;
+                    printf("HELP\n");
                     break;
                 case 9:
-                    printf("HELP\n");
+                    True = 1; /* Exit the loop and terminate the program */
                     break;
                 default:
                     printf("Invalid choice.\n");
