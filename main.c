@@ -280,17 +280,20 @@ SimulationParameters read_parameters(void) {
     printf("Enter image height (pixels): ");
     scanf("%d", &SIMPAR.image_height);
     
-    printf("Enter physical width (m)(optimal around 10^-9): ");
+    printf("Enter physical width (10^-9 m): ");
     scanf("%lf", &SIMPAR.physical_width);
-
-    printf("Enter physical height (m)(optimal around 10^-9): ");
+    SIMPAR.physical_width *= pow(10, -9);
+    
+    printf("Enter physical height (10^-9 m): ");
     scanf("%lf", &SIMPAR.physical_height);
+    SIMPAR.physical_height *= pow(10, -9);
     
     printf("Enter number of alpha particles: ");
     scanf("%d", &SIMPAR.particle_count);
-
-    printf("Enter starting X position (m): ");
+    
+    printf("Enter starting X position (10^-9 m): ");
     scanf("%lf", &SIMPAR.starting_x);
+    SIMPAR.starting_x *= pow(10, -9);
 
     printf("Enter initial velocity (m/s): ");
     scanf("%lf", &SIMPAR.initial_velocity);
@@ -313,7 +316,7 @@ SimulationParameters read_parameters(void) {
 
 Validate validate_parameters(SimulationParameters SP) {
     if (SP.image_height > 0 && SP.image_width > 0 && SP.physical_height > 0 && SP.physical_width > 0) {
-        if (SP.particle_count > 0 && SP.starting_x > 0 && SP.starting_x < 1000 && SP.initial_velocity > 0 && SP.dt > 0 && SP.dt < 100 && SP.max_steps > 0) {
+        if (SP.particle_count > 0 && SP.starting_x > 0 && SP.starting_x < SP.physical_width && SP.initial_velocity > 0 && SP.dt > 0 && SP.dt < 100 && SP.max_steps > 0) {
             //!starting_x
             return VALID;
         }
