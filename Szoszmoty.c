@@ -15,19 +15,19 @@ int save_ppm(const char *filename, const RGB *image, int width, int height) {
     return 0;
 }
 
-void draw(const RGB *image, int width, int height) { // Takes image and converts SDL compatible and draws
-    SDL_Event ev; //Create the exit
-    if (SDL_Init(SDL_INIT_VIDEO) < 0) { //Initialises SDL
+void draw(const RGB *image, int width, int height) { /** Takes image and converts SDL compatible and draws */
+    SDL_Event ev; /** Create the exit */
+    if (SDL_Init(SDL_INIT_VIDEO) < 0) { /** Initialises SDL */
         fprintf(stderr, "SDL init error: %s\n", SDL_GetError());
         return;
     }
-    SDL_Surface *screen = SDL_SetVideoMode(width, height, 32, SDL_SWSURFACE); // screen will be shown
+    SDL_Surface *screen = SDL_SetVideoMode(width, height, 32, SDL_SWSURFACE); /** screen will be shown */
     if (screen == NULL) {
         fprintf(stderr, "SDL screen error: %s\n", SDL_GetError());
         SDL_Quit();
         return;
     }
-    SDL_Surface *surface = SDL_CreateRGBSurface(SDL_SWSURFACE, width, height, 32, 0, 0, 0, 0); //SDL Compatible data storage
+    SDL_Surface *surface = SDL_CreateRGBSurface(SDL_SWSURFACE, width, height, 32, 0, 0, 0, 0); /** SDL Compatible data storage */
     if (surface == NULL) {
         fprintf(stderr, "SDL error: %s\n", SDL_GetError());
         SDL_Quit();

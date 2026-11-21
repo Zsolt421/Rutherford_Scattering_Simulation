@@ -1,3 +1,4 @@
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
@@ -9,16 +10,16 @@
 
 
 /* Image dimensions are in pixels; physical distances and velocities use SI
- * units. Z is the dimensionless atomic number of a nucleus.
- *
- * Example settings: 800 x 800 pixels over a 1e-9 m x 1e-9 m region,
- * starting_x = 0 m, initial velocity = 1e7 m/s, dt = 1e-19 s, and
- * max_steps = 1000.
+  units. Z is the dimensionless atomic number of a nucleus.
+
+  Example settings: 800 x 800 pixels over a 1e-9 m x 1e-9 m region,
+  starting_x = 0 m, initial velocity = 1e7 m/s, dt = 1e-19 s, and
+  max_steps = 1000.
  */
 
 
 /* -------------------------
-* Definition of structures
+    Definition of structures
  ------------------------- */
 
 typedef enum{
@@ -26,7 +27,7 @@ typedef enum{
     VALID,
 } Validate;
 /* A two-dimensional pair used for positions, velocities, forces, and
- * accelerations. The meaning and units depend on the calculation using it.
+  accelerations. The meaning and units depend on the calculation using it.
  */
 typedef struct
 {
@@ -34,7 +35,7 @@ typedef struct
     double y;
 } Vector2;
 /* Nucleus position in metres and atomic number. Input records may omit Z,
- * in which case the file reader assigns the default value 79.
+  in which case the file reader assigns the default value 79.
  */
 typedef struct {
     double x;
@@ -70,7 +71,7 @@ typedef struct {
 } SimulationParameters;
 
 /* Integer image coordinates, as distinct from the physical metre-based
- * coordinates stored in Vector2.
+    coordinates stored in Vector2.
  */
 typedef struct {
     int x;
@@ -78,7 +79,7 @@ typedef struct {
 } Pixel2;
 
 /* -------------------------
-* Definition of constants
+     Definition of constants
  ------------------------- */
 #define PI 3.14159265358979
 #define EPSILON_0 8.8541878188e-12
@@ -89,7 +90,7 @@ typedef struct {
 #define ALPHA_MASS 6.644657e-27
 
 /* -------------------------
-* Functions
+        Functions
  ------------------------- */
 
 
@@ -112,7 +113,7 @@ Vector2 vec_scale(Vector2 v, double factor) {
 
 
 /* Map a physical coordinate in the simulation region to the nearest pixel.
- * The region's endpoints map to pixel 0 and image_width - 1 respectively.
+  The region's endpoints map to pixel 0 and image_width - 1 respectively.
  */
 int physical_to_pixel_x(double x, double physical_width, int image_width) {
     int px = round(x / physical_width * (image_width - 1));
@@ -127,14 +128,14 @@ int physical_to_pixel_y(double y, double physical_height, int image_height) {
 
 
 /* -------------------------
-* Functions of phase 3
+    Functions of phase 3
  ------------------------- */
 
 
 /* Return the electrostatic force on an alpha particle at position from one
- * positively charged nucleus. The inverse-square Coulomb force is resolved
- * into x/y components; coincident positions are singular and are not handled
- * specially here.
+  positively charged nucleus. The inverse-square Coulomb force is resolved
+  into x/y components; coincident positions are singular and are not handled
+  specially here.
  */
 Vector2 calculate_coulomb_force(Vector2 position, Nucleus nucleus){
     long double Fx, Fy, dx, dy, d;
@@ -169,7 +170,7 @@ Vector2 calculate_total_force(Vector2 position, const Nucleus nuclei[], int nucl
 
 
 /* Earlier direct acceleration helper; the integrator below computes F/m at
- * each Runge-Kutta stage instead.
+  each Runge-Kutta stage instead.
 Vector2 calculate_acceleration(Vector2 position, const Nucleus nuclei[], int nucleus_count) {
     Vector2 acceleration_of_particle = {0,0};
     Vector2 F = calculate_total_force(position, nuclei, nucleus_count);
@@ -178,7 +179,7 @@ Vector2 calculate_acceleration(Vector2 position, const Nucleus nuclei[], int nuc
     return acceleration_of_particle;
 } */
 
-/* Set one image pixel if its coordinates are in bounds. */
+/*Set one image pixel if its coordinates are in bounds. */
 Validate color_pixel(int image_width, int image_height, int iy, int ix, RGB *image, RGB color) {
     if (ix < 0 || ix >= image_width || iy < 0 || iy >= image_height) {
         return INVALID; /* Nothing to draw inside the image */
@@ -191,8 +192,8 @@ Validate color_pixel(int image_width, int image_height, int iy, int ix, RGB *ima
 }
 
 /* Rasterize the segment between two physical positions using evenly spaced
- * samples (a digital differential analyzer). Pixel samples outside the image
- * are ignored; only in-bounds pixels are written.
+  samples (a digital differential analyzer). Pixel samples outside the image
+  are ignored; only in-bounds pixels are written.
  */
 Validate draw_trajectories(Vector2 prev_pos, Vector2 pos, RGB color, double physical_width, int image_width, double physical_height, int image_height, RGB *image) {
     int ix, iy;
@@ -247,8 +248,8 @@ Validate draw_trajectories(Vector2 prev_pos, Vector2 pos, RGB color, double phys
 }
 
 /* Advance one particle for max_steps using classical fourth-order Runge-Kutta
- * on dr/dt = v and dv/dt = F(r)/m. Each completed step is drawn before the
- * particle's position and velocity are updated.
+  on dr/dt = v and dv/dt = F(r)/m. Each completed step is drawn before the
+  particle's position and velocity are updated.
  */
 Validate numerical_calculations(AlphaParticle *alpha, const Nucleus nuclei[], int nucleus_count, SimulationParameters SIMPAR, RGB *image){
     int t = 1;
@@ -261,7 +262,7 @@ Validate numerical_calculations(AlphaParticle *alpha, const Nucleus nuclei[], in
     while (t <= SIMPAR.max_steps) {
 
         /* First RK4 stage: evaluate the derivatives at the current state. */
-        k1_r = (*alpha).velocity;  /* k1_r = v */
+        k1_r = (*alpha).velocity;  /** k1_r = v */
 
         F1 = calculate_total_force((*alpha).position, nuclei, nucleus_count);
         k1_v = vec_scale(F1, 1.0/ ALPHA_MASS); /* k1_v = F(r)/m */
@@ -295,12 +296,12 @@ Validate numerical_calculations(AlphaParticle *alpha, const Nucleus nuclei[], in
         sum_r.x = (k1_r.x + 2*k2_r.x + 2*k3_r.x + k4_r.x);
         sum_r.y = (k1_r.y + 2*k2_r.y + 2*k3_r.y + k4_r.y);
 
-        r_new = vec_add((*alpha).position, vec_scale(sum_r, SIMPAR.dt/6)); /*r_new = r + dt * (k1_r + 2*k2_r + 2*k3_r + k4_r) / 6 */
+        r_new = vec_add((*alpha).position, vec_scale(sum_r, SIMPAR.dt/6)); /**r_new = r + dt * (k1_r + 2*k2_r + 2*k3_r + k4_r) / 6 */
 
         sum_v.x = (k1_v.x + 2*k2_v.x + 2*k3_v.x + k4_v.x);
         sum_v.y = (k1_v.y + 2*k2_v.y + 2*k3_v.y + k4_v.y);
 
-        v_new = vec_add((*alpha).velocity, vec_scale(sum_v, SIMPAR.dt/6)); /*v_new = v + dt * (k1_v + 2*k2_v + 2*k3_v + k4_v) / 6 */
+        v_new = vec_add((*alpha).velocity, vec_scale(sum_v, SIMPAR.dt/6)); /**v_new = v + dt * (k1_v + 2*k2_v + 2*k3_v + k4_v) / 6 */
 
         if (draw_trajectories((*alpha).position, r_new, (*alpha).COLOR, SIMPAR.physical_width, SIMPAR.image_width, SIMPAR.physical_height, SIMPAR.image_height, image) == INVALID) {
             return INVALID;
@@ -354,14 +355,45 @@ AlphaParticle *simulate_particles(const Nucleus nuclei[], AlphaParticle *Particl
 }
 
 
+
+/* Append .txt to a filename if the extension is missing. */
+char *txt_adder(char *filename) {
+    size_t len = strlen(filename);
+
+    /* Keep the original name if it already ends with .txt. */
+    if (len < 4 || strcmp(filename + len - 4, ".txt") != 0) {
+        if (len > 251) {
+            fprintf(stderr, "Filename is too long.\n");
+            return NULL;
+        }
+        strcat(filename, ".txt");
+    }
+    return filename;
+}
+
+/* Append .ppm to a filename if the extension is missing. */
+char *ppm_adder(char *filename) {
+    size_t len = strlen(filename);
+
+    /* Keep the original name if it already ends with .ppm. */
+    if (len < 4 || strcmp(filename + len - 4, ".ppm") != 0) {
+        if (len > 251) {
+            fprintf(stderr, "Filename is too long.\n");
+            return NULL;
+        }
+        strcat(filename, ".ppm");
+    }
+    return filename;
+}
+
 /* -------------------------
-* Functions of phase 2
+    Functions of phase 2
  ------------------------- */
 
 
 /* Read the interactive configuration. File extensions are appended when
- * omitted; parameter ranges and file checks are handled by the validation
- * and input-reading routines.
+  omitted; parameter ranges and file checks are handled by the validation
+  and input-reading routines.
  */
 Validate read_parameters(SimulationParameters *SIMPAR) {
     *SIMPAR = (SimulationParameters){0}; /* Start with empty names and zeroed fields. */
@@ -450,15 +482,104 @@ Validate read_parameters(SimulationParameters *SIMPAR) {
         return INVALID;
     }
 
-    size_t len = strlen(SIMPAR->nuclei_filename);
-    if (len < 4 || strcmp(SIMPAR->nuclei_filename + len - 4, ".txt") != 0) {
-        strcat(SIMPAR->nuclei_filename, ".txt");
+    /* Use the same filename helpers as in the file input mode. */
+    if (txt_adder(SIMPAR->nuclei_filename) == NULL) {
+        return INVALID;
     }
-    len = strlen(SIMPAR->output_filename);
-    if (len < 4 || strcmp(SIMPAR->output_filename + len - 4, ".ppm") != 0) {
-        strcat(SIMPAR->output_filename, ".ppm");
+    if (ppm_adder(SIMPAR->output_filename) == NULL) {
+        return INVALID;
     }
 
+    return VALID;
+}
+
+
+Validate read_parameters_from_file(SimulationParameters *SIMPAR) {
+    *SIMPAR = (SimulationParameters){0}; /* Start with empty names and zeroed fields. */
+    char input_file_name_alpha[256], output_file_name[256], input_file_name_nuclei[256];
+
+    printf("Enter input file name of alpha particles (with or without .txt) (Max 255 characters): ");
+    fflush(stdout);
+    if (scanf("%255s", input_file_name_alpha) != 1) {
+        fprintf(stderr, "Invalid input file name of alpha particles.\n");
+        return INVALID;
+    }
+    if (input_file_name_alpha[0] == '\0') {
+        fprintf(stderr, "Input file name of alpha particles cannot be empty.\n");
+        return INVALID;
+    }
+    /* Append .txt if missing, without exceeding the filename array size. */
+    if (txt_adder(input_file_name_alpha) == NULL) {
+        return INVALID;
+    }
+
+    printf("Enter input file name of nuclei (with or without .txt) (Max 255 characters): ");
+    fflush(stdout);
+    if (scanf("%255s", input_file_name_nuclei) != 1) {
+        fprintf(stderr, "Invalid input file name of nuclei.\n");
+        return INVALID;
+    }
+    if (input_file_name_nuclei[0] == '\0') {
+        fprintf(stderr, "Input file name of nuclei cannot be empty.\n");
+        return INVALID;
+    }
+    /* Append .txt if missing, without exceeding the filename array size. */
+    if (txt_adder(input_file_name_nuclei) == NULL) {
+        return INVALID;
+    }
+
+    /* Store the nuclei filename for read_nuclei(). */
+    /* Include the terminating null character when copying the name. */
+    for (size_t i = 0; i <= strlen(input_file_name_nuclei); i++) {
+        SIMPAR->nuclei_filename[i] = input_file_name_nuclei[i];
+    }
+
+    printf("Enter output file name (with or without .ppm) (Max 255 characters): ");
+    fflush(stdout);
+    if (scanf("%255s", output_file_name) != 1) {
+        fprintf(stderr, "Invalid output file name.\n");
+        return INVALID;
+    }
+    if (output_file_name[0] == '\0') {
+        fprintf(stderr, "Output file name cannot be empty.\n");
+        return INVALID;
+    }
+    /* Append .ppm if missing, without exceeding the filename array size. */
+    if (ppm_adder(output_file_name) == NULL) {
+        return INVALID;
+    }
+
+    /* Store the output filename for save_ppm(). */
+    /* Include the terminating null character when copying the name. */
+    for (size_t i = 0; i <= strlen(output_file_name); i++) {
+        SIMPAR->output_filename[i] = output_file_name[i];
+    }
+
+    /* Numerical parameters and nuclei positions are stored in separate files. */
+    FILE *file = fopen(input_file_name_alpha, "r");
+    if (file == NULL) {
+        fprintf(stderr, "Could not open %s for reading.\n", input_file_name_alpha);
+        return INVALID;
+    }
+
+    /* Read the ten numerical simulation parameters from the input file. */
+    if (fscanf(file, "%d %d %lf %lf %d %lf %lf %lf %lf %d",
+               &SIMPAR->image_width,
+               &SIMPAR->image_height,
+               &SIMPAR->physical_width,
+               &SIMPAR->physical_height,
+               &SIMPAR->particle_count,
+               &SIMPAR->starting_x,
+               &SIMPAR->initial_velocity_min,
+               &SIMPAR->initial_velocity_max,
+               &SIMPAR->dt,
+               &SIMPAR->max_steps) != 10) {
+        fprintf(stderr, "Invalid %s format.\n", input_file_name_alpha);
+        fclose(file);
+        return INVALID;
+    }
+
+    fclose(file);
     return VALID;
 }
 
@@ -530,7 +651,7 @@ Validate validate_file(SimulationParameters SP) {
 
 Validate validate_nuclei(SimulationParameters SIMPAR, int read_count, int count, double x, double y, int Z){
     /* Nucleus coordinates may lie on the inclusive physical-region boundary.
-     * A two-field record has no explicit Z and uses the caller's default.
+      A two-field record has no explicit Z and uses the caller's default.
      */
     if (x < 0.0 || y < 0.0 || x > SIMPAR.physical_width || y > SIMPAR.physical_height || !isfinite(x) || !isfinite(y)) {
         fprintf(stderr, "Nuclei position invalid in %s line %d", SIMPAR.nuclei_filename, count+1);
@@ -541,7 +662,7 @@ Validate validate_nuclei(SimulationParameters SIMPAR, int read_count, int count,
         return VALID;
     }
 
-    if (Z <= 0 || Z > 92){ //Atomic number check, exists but not larger than Uranium
+    if (Z <= 0 || Z > 92){ /* Atomic number check, exists but not larger than Uranium */
         fprintf(stderr, "Atomic number of the Nuclei invalid in %s line %d", SIMPAR.nuclei_filename, count+1);
         return INVALID;
     }
@@ -562,8 +683,8 @@ Nucleus *read_nuclei(SimulationParameters SIMPAR, int *out_count) {
     int read_count;
 
     /* Read one whitespace-separated `x y [Z]` record per line. Coordinates
-     * are in metres; omitted atomic numbers default to 79. Malformed lines
-     * fail the whole read, while successfully parsed records grow the array.
+      are in metres; omitted atomic numbers default to 79. Malformed lines
+      fail the whole read, while successfully parsed records grow the array.
      */
     file = fopen(SIMPAR.nuclei_filename, "r");
     if (file == NULL) {
@@ -585,6 +706,7 @@ Nucleus *read_nuclei(SimulationParameters SIMPAR, int *out_count) {
                 return NULL;
             }
 
+            /* Increase the dynamically allocated array for the next nucleus. */
             temp = (Nucleus *)realloc(p, sizeof(Nucleus) * (count + 1));
             if (temp == NULL) {
                 free(p);
@@ -617,7 +739,7 @@ Nucleus *read_nuclei(SimulationParameters SIMPAR, int *out_count) {
 
 
 /* -------------------------
-* Functions of phase 3
+   Functions of phase 3
  ------------------------- */
 
 
@@ -632,7 +754,7 @@ RGB *create_image(int width, int height) {
         return NULL;
     }
     /* Store pixels contiguously in row-major order and initialize the canvas
-     * to black before trajectories and nuclei are drawn.
+      to black before trajectories and nuclei are drawn.
      */
     for (i = 0; i < pixel_count; i++) {
         image[i].r = 0;
@@ -648,7 +770,7 @@ RGB *create_image(int width, int height) {
 void draw_single_nucleus(Nucleus nuclei, int r, SimulationParameters SP,RGB *image){
     int sim_x = physical_to_pixel_x(nuclei.x,SP.physical_width, SP.image_width);
     int sim_y = physical_to_pixel_y(nuclei.y,SP.physical_height, SP.image_height);
-    RGB color = {255,255,255}; /* Nuclei are displayed as white filled circles. */
+    RGB color = {255,255,255}; /** Nuclei are displayed as white filled circles. */
 
     for (int i = sim_x-r; i <= sim_x+r; i++){
         int dx = abs(sim_x-i);
@@ -662,14 +784,14 @@ void draw_single_nucleus(Nucleus nuclei, int r, SimulationParameters SP,RGB *ima
 }
 
 void draw_nuclei(Nucleus *nuclei,int nucleus_count,int r,SimulationParameters SP,RGB *image){
-    /* Overlay every nucleus after the particle trajectories have been drawn. */
+    /** Overlay every nucleus after the particle trajectories have been drawn. */
     for (int i = 0; i < nucleus_count; i++){
         draw_single_nucleus(nuclei[i],r,SP,image);
     }
 }
 
 int save_ppm(const char *filename, const RGB *image, int width, int height) {
-    /* Write a text-mode PPM (P3) image in row-major RGB order. */
+    /** Write a text-mode PPM (P3) image in row-major RGB order. */
     FILE *ppm=fopen(filename, "w");
     if (ppm == NULL) {
         fprintf(stderr,"Unable to open file for writing.\n");
@@ -688,7 +810,7 @@ int save_ppm(const char *filename, const RGB *image, int width, int height) {
 
 
 /* Display the RGB buffer in an SDL 1.2 window and keep it open until the user
- * closes the window. SDL surfaces created here are released on exit/errors.
+  closes the window. SDL surfaces created here are released on exit/errors.
  */
 int draw(const RGB *image, int width, int height) {
     SDL_Event ev;
@@ -744,12 +866,12 @@ int draw(const RGB *image, int width, int height) {
 }
 
 /* Run the interactive simulation path: collect settings, load nuclei, create
- * and simulate particles, save/display the image, then release owned buffers.
+  and simulate particles, save/display the image, then release owned buffers.
  */
 int normal_mode(void) {
     int r = 5; /* Radius of nuclei in pixels, from the newer implementation */
-    srand(time(NULL)); //for seed generation
-    int nucleus_count = 0; /* Set by read_nuclei after parsing the input file. */
+    srand(time(NULL)); /* for seed generation */
+    int nucleus_count = 0; /*  Set by read_nuclei after parsing the input file. */
 
     Nucleus *nuclei = NULL;
     AlphaParticle *Particles = NULL; /* Owned particle array, released before return. */
@@ -801,54 +923,218 @@ int normal_mode(void) {
 
 
     draw_nuclei(nuclei, nucleus_count, r, SIM_PAR, image);
-    if (save_ppm(SIM_PAR.output_filename, image, SIM_PAR.image_width, SIM_PAR.image_height) != 0) {
-        fprintf(stderr, "save_ppm failed\n");
-        free(image);
-        free(nuclei);
-        free(Particles);
-        return 1;
-    }
     if (draw(image, SIM_PAR.image_width, SIM_PAR.image_height) == INVALID) {
         free(image);
         free(nuclei);
         free(Particles);
         return 1;
     }
+
+    printf("Do you want to save the image as a PPM file? (y/n): ");
+    char save_choice;
+    if (scanf(" %c", &save_choice) == 1 && save_choice == 'y') {
+        if (save_ppm(SIM_PAR.output_filename, image, SIM_PAR.image_width, SIM_PAR.image_height) != 0) {
+            fprintf(stderr, "save_ppm failed\n");
+            free(image);
+            free(nuclei);
+            free(Particles);
+            return 1;
+        }
+        printf("Image saved as %s\n", SIM_PAR.output_filename);
+    }
+
     free(Particles);
     free(nuclei);
     free(image);
     return 0;
 }
 
+int demo_mode(void) {
+    SimulationParameters SIM_PAR = {
+        .image_width = 800,
+        .image_height = 800,
+        .physical_width = 1e-9,
+        .physical_height = 1e-9,
+        .particle_count = 10,
+        .starting_x = 0.0,
+        .initial_velocity_min = 1e7,
+        .initial_velocity_max = 1e7,
+        .dt = 1e-19,
+        .max_steps = 1000,
+        .nuclei_filename = "demo_in.txt",
+        .output_filename = "demo_out.ppm"
+    };
+    int r = 5; /* Radius of nuclei in pixels, from the newer implementation */
+    srand(time(NULL)); /* for seed generation */
+    int nucleus_count = 0; /* Set by read_nuclei after parsing the input file. */
+
+    Nucleus *nuclei = NULL;
+    AlphaParticle *Particles = NULL; /* Owned particle array, released before return. */
+
+    RGB *image = create_image(SIM_PAR.image_width, SIM_PAR.image_height);
+    if (image == NULL) {
+        fprintf(stderr,"Memory allocation for image failed\n");
+        return 1;
+    }
+    nuclei = read_nuclei(SIM_PAR, &nucleus_count);
+    if (nuclei == NULL && nucleus_count == 0) {
+        fprintf(stderr,"something went wrong with the file.\n");
+        free(image);
+        return 1;
+    }
+
+    /*Initialize and integrate the particle array, adding paths to image. */
+    Particles = initialize_particles(SIM_PAR);
+    if (Particles == NULL) {
+        fprintf(stderr,"something went wrong with with initialising the particles\n");
+        free(image);
+        free(nuclei);
+        return 1;
+    }
+    if (simulate_particles(nuclei, Particles, nucleus_count, SIM_PAR, image) == NULL) {
+        fprintf(stderr,"simulate_particles failed\n");
+        free(image);
+        free(nuclei);
+        free(Particles);
+        return 1;
+    }
+    draw_nuclei(nuclei, nucleus_count, r, SIM_PAR, image);
+    if (draw(image, SIM_PAR.image_width, SIM_PAR.image_height) == INVALID) {
+        free(image);
+        free(nuclei);
+        free(Particles);
+        return 1;
+    }
+
+    printf("Do you want to save the image as a PPM file? (y/n): ");
+    char save_choice;
+    if (scanf(" %c", &save_choice) == 1 && save_choice == 'y') {
+        if (save_ppm(SIM_PAR.output_filename, image, SIM_PAR.image_width, SIM_PAR.image_height) != 0) {
+            fprintf(stderr, "save_ppm failed\n");
+            free(image);
+            free(nuclei);
+            free(Particles);
+            return 1;
+        }
+        printf("Image saved as %s\n", SIM_PAR.output_filename);
+    }
+
+    free(Particles);
+    free(nuclei);
+    free(image);
+    return 0;
+}
+
+int read_mode(void) {
+    SimulationParameters SIM_PAR;
+    int r = 5; /* Radius of nuclei in pixels, from the newer implementation */
+    srand(time(NULL)); /* for seed generation */
+    int nucleus_count = 0; /* Set by read_nuclei after parsing the input file. */
+
+    Nucleus *nuclei = NULL;
+    AlphaParticle *Particles = NULL; /* Owned particle array, released before return. */
+
+    if (read_parameters_from_file(&SIM_PAR) == INVALID) {
+        fprintf(stderr, "Invalid input. Returning to main menu.\n");
+        return 1;
+    }
+    if (validate_parameters(SIM_PAR) == VALID){
+        printf("Simulation parameters validated.\n");
+    }
+    else{
+        fprintf(stderr,"There is one or more invalid parameters.\n");
+        return 1;
+    }
+
+    if (validate_file(SIM_PAR) == INVALID) {
+        return 1;
+    }
+
+    RGB *image = create_image(SIM_PAR.image_width, SIM_PAR.image_height);
+    if (image == NULL) {
+        fprintf(stderr,"Memory allocation for image failed\n");
+        return 1;
+    }
+    nuclei = read_nuclei(SIM_PAR, &nucleus_count);
+    if (nuclei == NULL && nucleus_count == 0) {
+        fprintf(stderr,"something went wrong with the file.\n");
+        free(image);
+        return 1;
+    }
+
+    /* Initialize and integrate the particle array, adding paths to image. */
+    Particles = initialize_particles(SIM_PAR);
+    if (Particles == NULL) {
+        fprintf(stderr,"something went wrong with with initialising the particles\n");
+        free(image);
+        free(nuclei);
+        return 1;
+    }
+    if (simulate_particles(nuclei, Particles, nucleus_count, SIM_PAR, image) == NULL) {
+        fprintf(stderr,"simulate_particles failed\n");
+        free(image);
+        free(nuclei);
+        free(Particles);
+        return 1;
+    }
+
+    draw_nuclei(nuclei, nucleus_count, r, SIM_PAR, image);
+
+    if (draw(image, SIM_PAR.image_width, SIM_PAR.image_height) == INVALID) {
+        free(image);
+        free(nuclei);
+        free(Particles);
+        return 1;
+    }
+
+    printf("Do you want to save the image as a PPM file? (y/n): ");
+    char save_choice;
+    if (scanf(" %c", &save_choice) == 1 && save_choice == 'y') {
+        if (save_ppm(SIM_PAR.output_filename, image, SIM_PAR.image_width, SIM_PAR.image_height) != 0) {
+            fprintf(stderr, "save_ppm failed\n");
+            free(image);
+            free(nuclei);
+            free(Particles);
+            return 1;
+        }
+        printf("Image saved as %s\n", SIM_PAR.output_filename);
+    }
+    free(image);
+    free(Particles);
+    free(nuclei);
+    return 0;
+}
+    /* -------------------------
+                 Main
+     ------------------------- */
 
 
-/* -------------------------
-* Main
- ------------------------- */
-
-
-int main(void) {
-    int choice, True=0;
-    /* Keep presenting the menu until the user selects the exit option. */
-    while (True == 0) {
-        printf("Select mode:\n- 1:Demo mode\n- 2:Read alpha from file\n- 3:Enter alpha by hand\n- 4:EXIT\n");
-        scanf("%d", &choice);
-        switch (choice) {
-            case 1:
-                demo_mode();
-                break;
-            case 2:
-                read_mode();
-                break;
-            case 3:
-                normal_mode();
-                break;
-            case 4:
-                True=1;
-                break;
-            default:
-                printf("Invalid choice.\n");
-                break;
+    int main(void) {
+        int choice, True = 0;
+        /* Keep presenting the menu until the user selects the exit option. */
+        while (True == 0) {
+            printf("Select mode:\n- 1:Demo mode\n- 2:Read alpha from file\n- 3:Enter alpha by hand\n- 4:EXIT\n");
+            if (scanf("%d", &choice) != 1) {
+                fprintf(stderr, "Invalid input.\n");
+                while (getchar() != '\n'); /* Clear the input buffer */
+                continue; /* Resets the loop to present the menu again */
+            }
+            switch (choice) {
+                case 1:
+                    demo_mode();
+                    break;
+                case 2:
+                    read_mode();
+                    break;
+                case 3:
+                    normal_mode();
+                    break;
+                case 4:
+                    True = 1;
+                    break;
+                default:
+                    printf("Invalid choice.\n");
+                    break;
+            }
         }
     }
-}
