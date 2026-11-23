@@ -633,15 +633,16 @@ AlphaParticle *simulate_particles(const Nucleus nuclei[], AlphaParticle *Particl
         return NULL;
     }
     long long total = (long long)SIMPAR.particle_count * SIMPAR.max_steps;
-    printf("\x1b[?25l");  /* Hide cursor */
+    printf("\x1b[?25l\n");  /* Hide cursor */
     show_progress(0, total);
     for (i = 0; i < SIMPAR.particle_count; i++) {
         if (numerical_calculations(&Particles[i], nuclei, nucleus_count, SIMPAR, image, i) == INVALID) {
+            printf("\x1b[?25h\n");
             return NULL;
         }
     }
     show_progress(total, total);
-    printf("\x1b[?25h\n");  /* Show cursor again */
+    printf("\x1b[?25h\n\n");  /* Show cursor again */
     return Particles;
 }
 
@@ -858,7 +859,6 @@ Validate save_ppm(const char *filename, const RGB *image, int width, int height)
 and simulate particles, save/display the image, then release owned buffers.
  */
 int normal_mode(void) {
-    srand(time(NULL)); /* for seed generation */
     int nucleus_count = 0; /*  Set by read_nuclei after parsing the input file. */
 
     Nucleus *nuclei = NULL;
@@ -902,8 +902,7 @@ int normal_mode(void) {
 
 int demo_mode(void) {
     SimulationParameters SIM_PAR = read_parameters_demo();
-    srand(time(NULL)); /* for seed generation */
-    int nucleus_count = 8;
+    int nucleus_count = 7;
 
 
     AlphaParticle *Particles = NULL; /* Owned particle array, released before return. */
@@ -921,16 +920,17 @@ int demo_mode(void) {
         free(image);
         return 1;
     }
+
     Nucleus initial_nuclei[] = {
-        {{5.2e-13, 1.2e-13}, 79},
-        {{5.5e-13, 3.4e-13}, 47},
-        {{6.2e-13, 2.1e-13}, 82},
-        {{6.5e-13, 4.8e-13}, 79},
-        {{7.3e-13, 1.1e-13}, 92},
-        {{7.6e-13, 3.7e-13}, 79},
-        {{8.1e-13, 8.3e-13}, 82},
-        {{9.1e-13, 7.2e-13}, 79}
-        };
+        {{5.3e-13, 1.2e-13}, 35},
+        {{7.2e-13, 1.7e-13}, 60},
+        {{8.6e-13, 3.1e-13}, 79},
+        {{9.1e-13, 5.0e-13}, 45},
+        {{8.6e-13, 6.9e-13}, 55},
+        {{7.2e-13, 8.3e-13}, 79},
+        {{5.3e-13, 8.8e-13}, 85}
+    };
+
     memcpy(nuclei, initial_nuclei, sizeof(initial_nuclei));
 
     if (run_symulation(Particles, SIM_PAR, image, nuclei, nucleus_count)) {
@@ -942,7 +942,6 @@ int demo_mode(void) {
 
 int read_mode(void) {
     SimulationParameters SIM_PAR;
-    srand(time(NULL)); /* for seed generation */
     int nucleus_count = 0; /* Set by read_nuclei after parsing the input file. */
 
     Nucleus *nuclei = NULL;
@@ -1034,10 +1033,11 @@ Validate run_symulation(AlphaParticle *Particles, SimulationParameters SIM_PAR, 
 
 
     int main(void) {
+        srand(time(NULL)); /* for seed generation */
         int choice, True = 0;
         /* Keep presenting the menu until the user selects the exit option. */
         while (True == 0) {
-            printf("Select mode:\n- 1:Demo mode\n- 2:Read alpha from file\n- 3:Enter alpha by hand\n- 4:HELP\n- 9:EXIT\n");
+            printf("\nSelect mode:\n- 1:Demo mode\n- 2:Read simulation parameters from file\n- 3:Enter simulation parameters by hand\n- 4:HELP\n- 9:EXIT\n");
             if (scanf("%d", &choice) != 1) {
                 fprintf(stderr, "Invalid input.\n");
                 while (getchar() != '\n'); /* Clear the input buffer */
@@ -1054,7 +1054,47 @@ Validate run_symulation(AlphaParticle *Particles, SimulationParameters SIM_PAR, 
                     normal_mode();
                     break;
                 case 4:
-                    printf("HELP\n");
+                    printf("\n========== RUTHERFORD SCATTERING SIMULATION ==========\n\n");
+
+                    printf("This program simulates alpha particles travelling through\n");
+                    printf("a field of positively charged atomic nuclei.\n");
+                    printf("Their trajectories are calculated using Coulomb's law\n");
+                    printf("and the fourth-order Runge-Kutta (RK4) method.\n\n");
+
+                    printf("MODES:\n");
+                    printf("1 - Demo: Run a simulation with predefined parameters and nuclei.\n");
+                    printf("2 - File: Load simulation parameters and nuclei from TXT files.\n");
+                    printf("3 - Manual: Enter parameters manually and load nuclei from a TXT file.\n");
+                    printf("9 - Exit the program.\n\n");
+
+                    printf("SIMULATION PARAMETERS:\n");
+                    printf("- Image width and height: Output resolution in pixels.\n");
+                    printf("- Physical width and height: Simulation area in metres.\n");
+                    printf("- Particle count: Number of alpha particles.\n");
+                    printf("- Starting X: Initial horizontal position in metres.\n");
+                    printf("- Velocity min/max: Initial velocity range in m/s.\n");
+                    printf("- dt: Time interval between numerical integration steps.\n");
+                    printf("- Max steps: Number of integration steps per particle.\n\n");
+
+                    printf("NUCLEI FILE FORMAT (.txt):\n");
+                    printf("Each line contains: X Y Z\n");
+                    printf("Example: 5.3e-13 1.2e-13 79\n");
+                    printf("Z is optional (default: 79).\n");
+                    printf("Allowed atomic numbers: 1-92.\n");
+                    printf("Nuclei must be inside the simulation area,\n");
+                    printf("in the right half of the screen.\n\n");
+
+                    printf("PARAMETER FILE FORMAT (.txt):\n");
+                    printf("Ten whitespace-separated values in this order:\n");
+                    printf("image_width image_height physical_width physical_height\n");
+                    printf("particle_count starting_x velocity_min velocity_max dt max_steps\n\n");
+
+                    printf("OUTPUT:\n");
+                    printf("The trajectories are displayed in an SDL window.\n");
+                    printf("Close the window to return to the terminal.\n");
+                    printf("You can then save the image in PPM format.\n\n");
+
+                    printf("=====================================================\n\n");
                     break;
                 case 9:
                     True = 1; /* Exit the loop and terminate the program */
