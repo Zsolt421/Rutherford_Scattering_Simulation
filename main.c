@@ -754,7 +754,7 @@ void draw_nuclei(Nucleus *nuclei,int nucleus_count,SimulationParameters SP,RGB *
 
 void draw_single_nucleus(Nucleus nuclei, SimulationParameters SP,RGB *image){
     //set r 1-max pixels now 9 based on ratios
-    int r = (int)round(2.0 + 0.8 * sqrt((double)nuclei.Z));
+    int r = (int)round(0.5 + 0.1 * (double)nuclei.Z);
 
     int sim_x = physical_to_pixel_x(nuclei.pos.x,SP.physical_width, SP.image_width);
     int sim_y = physical_to_pixel_y(nuclei.pos.y,SP.physical_height, SP.image_height);

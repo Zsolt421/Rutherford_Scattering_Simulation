@@ -93,7 +93,7 @@ Nucleus *read_nuclei(SimulationParameters SIMPAR, int *out_count);
 
 Vector2 calculate_coulomb_force(Vector2 position, Nucleus nucleus);
 Vector2 calculate_total_force(Vector2 position, const Nucleus nuclei[], int nucleus_count);
-Validate numerical_calculations(AlphaParticle *alpha, const Nucleus nuclei[], int nucleus_count, SimulationParameters SIMPAR, RGB *image, int particle_indey);
+Validate numerical_calculations(AlphaParticle *alpha, const Nucleus nuclei[], int nucleus_count, SimulationParameters SIMPAR, RGB *image, int particle_index);
 AlphaParticle *initialize_particles(SimulationParameters SIMPAR);
 AlphaParticle *simulate_particles(const Nucleus nuclei[], AlphaParticle *Particles, int nucleus_count, SimulationParameters SIMPAR, RGB *image);
 
